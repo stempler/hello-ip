@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP Whitelist Authentication</title>
+    <link rel="stylesheet" href="{{ base_path }}/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>IP Whitelist Authentication</h1>
+        <form id="authForm">
+            <div class="form-group">
+                <label for="credential_id">Credential ID:</label>
+                <input type="text" id="credential_id" name="credential_id" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit">Authenticate</button>
+        </form>
+        <div id="message" class="message"></div>
+    </div>
+    <script>
+        const form = document.getElementById('authForm');
+        const messageDiv = document.getElementById('message');
+        const basePath = '{{ base_path }}';
+        
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            messageDiv.textContent = '';
+            messageDiv.className = 'message';
+            
+            const credentialId = document.getElementById('credential_id').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch(basePath + '/auth', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        credential_id: credentialId,
+                        password: password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    messageDiv.textContent = `Success! Your IP (${data.ip}) has been added to the whitelist.`;
+                    messageDiv.className = 'message success';
+                    form.reset();
+                } else {
+                    messageDiv.textContent = data.error || 'Authentication failed';
+                    messageDiv.className = 'message error';
+                }
+            } catch (error) {
+                messageDiv.textContent = 'An error occurred. Please try again.';
+                messageDiv.className = 'message error';
+            }
+        });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,8 @@
+[tools]
+python = "3.11"
+
+[env]
+_.python.venv = { path = ".venv", create = true }
+
+[settings]
+env_shell_expand = false
