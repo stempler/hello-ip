@@ -15,8 +15,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Create necessary directories
+# Create necessary directories and make start script executable
 RUN mkdir -p templates static /data && \
+    chmod +x start.sh && \
     chown -R appuser:appuser /app /data
 
 # Switch to non-root user
@@ -29,6 +30,6 @@ EXPOSE 8080 8081
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"
 
-# Run the application
-CMD ["python", "app.py"]
+# Run the application with gunicorn
+CMD ["./start.sh"]
 

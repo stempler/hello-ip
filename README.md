@@ -53,6 +53,8 @@ docker run -d \
 | `MAX_ENTRIES` | Maximum number of whitelist entries | `1000` |
 | `DATABASE_PATH` | SQLite database file path | `/data/whitelist.db` |
 | `CREDENTIALS` | JSON string of credential IDs to password hashes | `{}` |
+| `GUNICORN_WORKERS` | Number of gunicorn worker processes for main app | `4` |
+| `GUNICORN_THREADS` | Number of threads per worker | `2` |
 
 ### Credentials Format
 
@@ -152,6 +154,21 @@ python app.py
 
 If you prefer not to use mise-en-place, ensure you have Python 3.11+ installed and follow steps 4-7 above.
 
+## Production Deployment
+
+The Docker image uses **gunicorn** as a production WSGI server instead of Flask's development server. The application runs with:
+
+- **Main app** (port 8080): Production WSGI server with configurable workers
+- **Internal app** (port 8081): Lightweight server for internal whitelist endpoint
+
+You can configure gunicorn workers and threads via environment variables:
+```bash
+-e GUNICORN_WORKERS=4 \
+-e GUNICORN_THREADS=2
+```
+
+For local development, you can still use `python app.py` which uses Flask's development server (with the warning).
+
 ## Security Considerations
 
 - Passwords are hashed using Werkzeug's secure password hashing
@@ -160,6 +177,7 @@ If you prefer not to use mise-en-place, ensure you have Python 3.11+ installed a
 - Separate ports for internal vs public access
 - Input validation for IP addresses
 - Non-root user in Docker container
+- Production WSGI server (gunicorn) in Docker image
 
 ## Database Schema
 
