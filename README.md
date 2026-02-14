@@ -65,6 +65,12 @@ docker run -d \
 | `CREDENTIALS` | JSON string of credential IDs to password hashes | `{}` |
 | `GUNICORN_WORKERS` | Number of gunicorn worker processes for main app | `4` |
 | `GUNICORN_THREADS` | Number of threads per worker | `2` |
+| `BUNKERWEB_ENABLED` | Enable BunkerWeb API integration | `false` |
+| `BUNKERWEB_API_URL` | Base URL for BunkerWeb API | `` |
+| `BUNKERWEB_USERNAME` | BunkerWeb API username for basic auth | `` |
+| `BUNKERWEB_PASSWORD` | BunkerWeb API password for basic auth | `` |
+| `BUNKERWEB_JOB_PLUGIN` | Job plugin name to trigger | `greylist` |
+| `BUNKERWEB_JOB_NAME` | Job name to trigger | `greylist-download` |
 
 ### Credentials Format
 
@@ -215,6 +221,61 @@ The application uses SQLite with one table:
 - `whitelist_entries`: Stores IP addresses, credential IDs, authentication time, and expiration time
 
 **Note:** Credentials are not stored in the database. They are configured via the `CREDENTIALS` environment variable and verified at runtime.
+
+## BunkerWeb Integration
+
+The application supports optional integration with the BunkerWeb API to automatically trigger jobs when the whitelist changes.
+
+### Configuration
+
+To enable BunkerWeb integration, set the following environment variables:
+
+```bash
+-e BUNKERWEB_ENABLED=true \
+-e BUNKERWEB_API_URL="http://bunkerweb:8888" \
+-e BUNKERWEB_USERNAME="api_user" \
+-e BUNKERWEB_PASSWORD="api_password" \
+-e BUNKERWEB_JOB_PLUGIN="greylist" \
+-e BUNKERWEB_JOB_NAME="greylist-download"
+```
+
+### How It Works
+
+1. **Authentication**: When a whitelist entry is added, the application authenticates with the BunkerWeb API using basic authentication (username/password) at the `/auth` endpoint.
+
+2. **Token Management**: The authentication token is cached and reused for subsequent API calls. The token is refreshed automatically when it expires.
+
+3. **Job Triggering**: After successful authentication, the application triggers the configured job by sending a POST request to `/jobs/run` with the following payload:
+   ```json
+   {
+     "jobs": [
+       {
+         "plugin": "greylist",
+         "name": "greylist-download"
+       }
+     ]
+   }
+   ```
+
+4. **Concurrency Handling**: All BunkerWeb API calls are serialized using a lock mechanism to prevent conflicts when multiple whitelist updates occur simultaneously.
+
+5. **Error Handling**: BunkerWeb integration failures are logged but do not affect whitelist operations. The application continues to function normally even if BunkerWeb is unavailable.
+
+### Example Docker Run with BunkerWeb
+
+```bash
+docker run -d \
+  -p 8080:8080 \
+  -p 8081:8081 \
+  -v whitelist-data:/data \
+  -e CREDENTIALS='{"admin": "pbkdf2:sha256:..."}' \
+  -e BUNKERWEB_ENABLED=true \
+  -e BUNKERWEB_API_URL="http://bunkerweb:8080" \
+  -e BUNKERWEB_USERNAME="bunkerweb_user" \
+  -e BUNKERWEB_PASSWORD="bunkerweb_pass" \
+  --name hello-ip \
+  hello-ip
+```
 
 ## License
 
