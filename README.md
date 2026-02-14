@@ -14,6 +14,16 @@ A simple web application for authenticating users and maintaining an IP whitelis
 
 ### Using Docker
 
+You can either build the image locally or use the pre-built image from GitHub Container Registry.
+
+#### Option 1: Use Pre-built Image from GHCR
+
+```bash
+docker pull ghcr.io/stempler/hello-ip:latest
+```
+
+#### Option 2: Build Locally
+
 1. Build the Docker image:
 ```bash
 docker build -t hello-ip .
@@ -35,8 +45,8 @@ docker run -d \
   -e BASE_PATH="/" \
   -e ENTRY_VALIDITY_HOURS=24 \
   -e MAX_ENTRIES=1000 \
-  --name ip-whitelist \
-  ip-whitelist-app
+  --name hello-ip \
+  hello-ip
 ```
 
 4. Access the web interface at `http://localhost:8080`
