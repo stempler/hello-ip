@@ -1,7 +1,7 @@
 """SQLite database operations for whitelist entries."""
 import sqlite3
 import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from werkzeug.security import check_password_hash
 from config import Config
 
@@ -69,6 +69,47 @@ def add_whitelist_entry(ip: str, credential_id: str):
     # Cleanup after adding entry
     cleanup_expired_entries()
     enforce_max_entries()
+
+
+def check_ip_status(ip: str) -> Optional[Dict[str, Any]]:
+    """Check if a specific IP is whitelisted and valid.
+    
+    Args:
+        ip: IP address to check
+        
+    Returns:
+        Dictionary with entry info if valid, None if not whitelisted or expired.
+        Contains: ip, expires_at, remaining_seconds
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    now = datetime.datetime.utcnow()
+    now_iso = now.isoformat()
+    
+    cursor.execute('''
+        SELECT ip, expires_at
+        FROM whitelist_entries
+        WHERE ip = ? AND expires_at > ?
+    ''', (ip, now_iso))
+    
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row is None:
+        return None
+    
+    expires_at = datetime.datetime.fromisoformat(row['expires_at'])
+    remaining_seconds = max(0, int((expires_at - now).total_seconds()))
+    
+    # Return expires_at with 'Z' suffix to indicate UTC
+    expires_at_iso = expires_at.isoformat() + 'Z'
+    
+    return {
+        'ip': row['ip'],
+        'expires_at': expires_at_iso,
+        'remaining_seconds': remaining_seconds
+    }
 
 
 def get_valid_ips() -> List[str]:

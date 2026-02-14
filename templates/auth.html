@@ -8,45 +8,209 @@
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <div class="matrix-bg"></div>
-            <div class="terminal-prompt">
-                <span class="prompt-text">root@matrix:~$</span>
+        <!-- Whitelisted View (Mode 1) -->
+        <div id="entered-view" class="view" style="display: none;">
+            <div class="header">
+                <div class="matrix-bg"></div>
+                <div class="terminal-prompt">
+                    <span class="prompt-text">root@matrix:~$</span>
+                </div>
+                <h1 class="matrix-title">You're in the Matrix</h1>
             </div>
-            <h1 class="matrix-title">Enter the Matrix</h1>
+            <div class="entered-content">
+                <div class="countdown-container">
+                    <div class="countdown-label">Access expires in:</div>
+                    <div id="countdown" class="countdown">
+                        <span id="countdown-days" class="countdown-unit">
+                            <span class="countdown-value">00</span>
+                            <span class="countdown-label-unit">days</span>
+                        </span>
+                        <span class="countdown-separator">:</span>
+                        <span id="countdown-hours" class="countdown-unit">
+                            <span class="countdown-value">00</span>
+                            <span class="countdown-label-unit">hours</span>
+                        </span>
+                        <span class="countdown-separator">:</span>
+                        <span id="countdown-minutes" class="countdown-unit">
+                            <span class="countdown-value">00</span>
+                            <span class="countdown-label-unit">minutes</span>
+                        </span>
+                        <span class="countdown-separator">:</span>
+                        <span id="countdown-seconds" class="countdown-unit">
+                            <span class="countdown-value">00</span>
+                            <span class="countdown-label-unit">seconds</span>
+                        </span>
+                    </div>
+                </div>
+                <div class="extend-link-container">
+                    <a href="#" id="extend-link" class="extend-link">Extend access</a>
+                </div>
+            </div>
         </div>
-        <form id="authForm">
-            <div class="form-group">
-                <label for="credential_id">ID</label>
-                <input type="text" id="credential_id" name="credential_id" placeholder="Enter your credential ID" required autocomplete="username">
+
+        <!-- Login View (Mode 2) -->
+        <div id="login-view" class="view">
+            <div class="header">
+                <div class="matrix-bg"></div>
+                <div class="terminal-prompt">
+                    <span class="prompt-text">root@matrix:~$</span>
+                </div>
+                <h1 class="matrix-title">Enter the Matrix</h1>
             </div>
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" name="password" placeholder="Enter your password" required autocomplete="current-password">
-            </div>
-            <button type="submit" id="submitBtn">
-                <span class="button-text">Enter</span>
-                <span class="button-loader" style="display: none;">
-                    <svg class="spinner" viewBox="0 0 24 24">
-                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round" stroke-dasharray="32" stroke-dashoffset="32">
-                            <animate attributeName="stroke-dasharray" dur="2s" values="0 32;16 16;0 32;0 32" repeatCount="indefinite"/>
-                            <animate attributeName="stroke-dashoffset" dur="2s" values="0;-16;-32;-32" repeatCount="indefinite"/>
-                        </circle>
-                    </svg>
-                </span>
-            </button>
-        </form>
-        <div id="message" class="message"></div>
+            <form id="authForm">
+                <div class="form-group">
+                    <label for="credential_id">ID</label>
+                    <input type="text" id="credential_id" name="credential_id" placeholder="Enter your credential ID" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" placeholder="Enter your password" required autocomplete="current-password">
+                </div>
+                <button type="submit" id="submitBtn">
+                    <span class="button-text">Enter</span>
+                    <span class="button-loader" style="display: none;">
+                        <svg class="spinner" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round" stroke-dasharray="32" stroke-dashoffset="32">
+                                <animate attributeName="stroke-dasharray" dur="2s" values="0 32;16 16;0 32;0 32" repeatCount="indefinite"/>
+                                <animate attributeName="stroke-dashoffset" dur="2s" values="0;-16;-32;-32" repeatCount="indefinite"/>
+                            </circle>
+                        </svg>
+                    </span>
+                </button>
+            </form>
+            <div id="message" class="message"></div>
+        </div>
     </div>
     <script>
+        const basePath = '{{ base_path }}';
+        const enteredView = document.getElementById('entered-view');
+        const loginView = document.getElementById('login-view');
         const form = document.getElementById('authForm');
         const messageDiv = document.getElementById('message');
-        const basePath = '{{ base_path }}';
-        
         const submitBtn = document.getElementById('submitBtn');
         const buttonText = submitBtn.querySelector('.button-text');
         const buttonLoader = submitBtn.querySelector('.button-loader');
+        const extendLink = document.getElementById('extend-link');
         
+        let countdownInterval = null;
+        let expiresAt = null;
+
+        // Helper function to construct URLs
+        function getUrl(path) {
+            return basePath === '/' ? path : basePath + path;
+        }
+
+        // Format seconds into days, hours, minutes, seconds
+        function formatCountdown(seconds) {
+            const days = Math.floor(seconds / 86400);
+            const hours = Math.floor((seconds % 86400) / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            
+            return {
+                days: String(days).padStart(2, '0'),
+                hours: String(hours).padStart(2, '0'),
+                minutes: String(minutes).padStart(2, '0'),
+                seconds: String(secs).padStart(2, '0')
+            };
+        }
+
+        // Update countdown display
+        function updateCountdown(remainingSeconds) {
+            if (remainingSeconds <= 0) {
+                stopCountdown();
+                showLoginView();
+                return;
+            }
+
+            const time = formatCountdown(remainingSeconds);
+            document.getElementById('countdown-days').querySelector('.countdown-value').textContent = time.days;
+            document.getElementById('countdown-hours').querySelector('.countdown-value').textContent = time.hours;
+            document.getElementById('countdown-minutes').querySelector('.countdown-value').textContent = time.minutes;
+            document.getElementById('countdown-seconds').querySelector('.countdown-value').textContent = time.seconds;
+        }
+
+        // Start countdown timer
+        function startCountdown(expiresAtIso, initialSeconds) {
+            // Parse as UTC - ensure it has 'Z' suffix or add it
+            // This ensures JavaScript interprets it as UTC, not local time
+            const expiresAtStr = expiresAtIso.endsWith('Z') ? expiresAtIso : expiresAtIso + 'Z';
+            expiresAt = new Date(expiresAtStr);
+            
+            // Validate that the parsed date is valid
+            if (isNaN(expiresAt.getTime())) {
+                console.error('Invalid expiration date:', expiresAtIso);
+                showLoginView();
+                return;
+            }
+            
+            // Calculate remaining seconds from UTC timestamps
+            // This ensures consistency regardless of client timezone
+            function calculateRemainingSeconds() {
+                const now = new Date();
+                return Math.max(0, Math.floor((expiresAt.getTime() - now.getTime()) / 1000));
+            }
+            
+            // Use calculated value immediately to ensure consistency
+            let remainingSeconds = calculateRemainingSeconds();
+            updateCountdown(remainingSeconds);
+
+            // Clear any existing interval
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+            }
+
+            // Update every second using UTC timestamps
+            countdownInterval = setInterval(() => {
+                remainingSeconds = calculateRemainingSeconds();
+                updateCountdown(remainingSeconds);
+            }, 1000);
+        }
+
+        // Stop countdown timer
+        function stopCountdown() {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+        }
+
+        // Show entered view (Mode 1)
+        function showEnteredView(expiresAtIso, remainingSeconds) {
+            stopCountdown();
+            loginView.style.display = 'none';
+            enteredView.style.display = 'block';
+            startCountdown(expiresAtIso, remainingSeconds);
+        }
+
+        // Show login view (Mode 2)
+        function showLoginView() {
+            stopCountdown();
+            enteredView.style.display = 'none';
+            loginView.style.display = 'block';
+            form.reset();
+            messageDiv.textContent = '';
+            messageDiv.className = 'message';
+        }
+
+        // Check status on page load
+        async function checkStatus() {
+            try {
+                const response = await fetch(getUrl('/status'));
+                const data = await response.json();
+                
+                if (data.entered && data.expires_at && data.remaining_seconds) {
+                    showEnteredView(data.expires_at, data.remaining_seconds);
+                } else {
+                    showLoginView();
+                }
+            } catch (error) {
+                console.error('Error checking status:', error);
+                showLoginView();
+            }
+        }
+
+        // Handle form submission
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             messageDiv.textContent = '';
@@ -61,9 +225,7 @@
             const password = document.getElementById('password').value;
             
             try {
-                // Construct the auth endpoint URL properly
-                const authUrl = basePath === '/' ? '/auth' : basePath + '/auth';
-                const response = await fetch(authUrl, {
+                const response = await fetch(getUrl('/auth'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -76,18 +238,9 @@
                 
                 const data = await response.json();
                 
-                if (response.ok) {
-                    messageDiv.innerHTML = `
-                        <svg class="message-icon" viewBox="0 0 24 24" fill="none">
-                            <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                        <div>
-                            <strong>Success!</strong>
-                            <p>You are known to us now as <code>${data.ip}</code>.</p>
-                        </div>
-                    `;
-                    messageDiv.className = 'message success';
-                    form.reset();
+                if (response.ok && data.entered) {
+                    // Transition to entered view
+                    showEnteredView(data.expires_at, data.remaining_seconds);
                 } else {
                     messageDiv.innerHTML = `
                         <svg class="message-icon" viewBox="0 0 24 24" fill="none">
@@ -118,6 +271,15 @@
                 buttonLoader.style.display = 'none';
             }
         });
+
+        // Handle extend link click
+        extendLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            showLoginView();
+        });
+
+        // Check status on page load
+        checkStatus();
     </script>
 </body>
 </html>

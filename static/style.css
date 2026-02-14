@@ -406,6 +406,127 @@ button:disabled {
     }
 }
 
+/* View transitions */
+.view {
+    animation: matrixFadeIn 0.5s ease-out;
+}
+
+@keyframes viewTransition {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+        filter: blur(5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+        filter: blur(0);
+    }
+}
+
+/* Entered view (Mode 1) */
+.entered-content {
+    text-align: center;
+    margin-top: 32px;
+}
+
+.countdown-container {
+    margin-bottom: 32px;
+}
+
+.countdown-label {
+    color: var(--matrix-text-dim);
+    font-size: 14px;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-family: 'Courier New', monospace;
+}
+
+.countdown {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-family: 'Courier New', monospace;
+}
+
+.countdown-unit {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 60px;
+}
+
+.countdown-value {
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--matrix-green);
+    text-shadow: 
+        0 0 10px var(--matrix-green),
+        0 0 20px var(--matrix-green);
+    line-height: 1;
+    margin-bottom: 4px;
+}
+
+.countdown-label-unit {
+    font-size: 11px;
+    color: var(--matrix-text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 4px;
+}
+
+.countdown-separator {
+    font-size: 28px;
+    color: var(--matrix-green);
+    text-shadow: 0 0 10px var(--matrix-green);
+    margin: 0 4px;
+    line-height: 1;
+}
+
+.extend-link-container {
+    margin-top: 40px;
+}
+
+.extend-link {
+    color: var(--matrix-text-dim);
+    text-decoration: none;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: 'Courier New', monospace;
+    transition: all 0.3s ease;
+    border-bottom: 1px solid transparent;
+    padding-bottom: 2px;
+}
+
+.extend-link:hover {
+    color: var(--matrix-green);
+    border-bottom-color: var(--matrix-green);
+    text-shadow: 0 0 5px var(--matrix-green);
+}
+
+/* Responsive adjustments for countdown */
+@media (max-width: 480px) {
+    .countdown-value {
+        font-size: 28px;
+    }
+    
+    .countdown-separator {
+        font-size: 22px;
+    }
+    
+    .countdown-label-unit {
+        font-size: 10px;
+    }
+    
+    .countdown-unit {
+        min-width: 50px;
+    }
+}
+
 /* Matrix rain effect (subtle) */
 @keyframes matrixRain {
     0% {

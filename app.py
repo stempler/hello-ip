@@ -40,6 +40,24 @@ def index():
     return render_template('auth.html', base_path=Config.BASE_PATH)
 
 
+@main_app.route(Config.BASE_PATH + '/status', methods=['GET'])
+def get_status():
+    """Get current IP's whitelist status."""
+    client_ip = get_client_ip()
+    if not validate_ip(client_ip):
+        return jsonify({'entered': False}), 200
+    
+    status = database.check_ip_status(client_ip)
+    if status:
+        return jsonify({
+            'entered': True,
+            'expires_at': status['expires_at'],
+            'remaining_seconds': status['remaining_seconds']
+        }), 200
+    else:
+        return jsonify({'entered': False}), 200
+
+
 @main_app.route(Config.BASE_PATH + '/auth', methods=['POST'])
 def authenticate():
     """Authenticate user and add IP to whitelist."""
@@ -62,10 +80,20 @@ def authenticate():
     # Add to whitelist
     database.add_whitelist_entry(client_ip, credential_id)
     
-    return jsonify({
+    # Get updated status to return
+    status = database.check_ip_status(client_ip)
+    
+    response = {
         'message': 'Authentication successful',
-        'ip': client_ip
-    }), 200
+        'ip': client_ip,
+        'entered': True
+    }
+    
+    if status:
+        response['expires_at'] = status['expires_at']
+        response['remaining_seconds'] = status['remaining_seconds']
+    
+    return jsonify(response), 200
 
 
 @main_app.route('/health')
