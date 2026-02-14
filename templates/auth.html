@@ -62,7 +62,9 @@
             const password = document.getElementById('password').value;
             
             try {
-                const response = await fetch(basePath + '/auth', {
+                // Construct the auth endpoint URL properly
+                const authUrl = basePath === '/' ? '/auth' : basePath + '/auth';
+                const response = await fetch(authUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
