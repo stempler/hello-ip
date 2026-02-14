@@ -5,8 +5,8 @@ from config import Config
 import database
 
 
-# Create Flask app instances
-main_app = Flask(__name__)
+# Create Flask app instances with static files disabled (we'll serve them via custom route)
+main_app = Flask(__name__, static_folder=None)
 internal_app = Flask(__name__)
 
 
@@ -35,6 +35,8 @@ def validate_ip(ip: str) -> bool:
 @main_app.route(Config.BASE_PATH + '/')
 def index():
     """Serve the authentication form."""
+    # Pass base_path to template - it will always have a trailing slash from Config
+    # or be '/' for root, so we can safely append paths
     return render_template('auth.html', base_path=Config.BASE_PATH)
 
 
@@ -73,10 +75,9 @@ def health():
     return jsonify({'status': 'healthy'}), 200
 
 
-@main_app.route('/static/<path:filename>')
 @main_app.route(Config.BASE_PATH + '/static/<path:filename>')
 def static_files(filename):
-    """Serve static files."""
+    """Serve static files only under the configured base path."""
     import os
     return send_from_directory(os.path.join(main_app.root_path, 'static'), filename)
 

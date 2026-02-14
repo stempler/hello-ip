@@ -3,22 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IP Whitelist Authentication</title>
-    <link rel="stylesheet" href="{{ base_path }}/static/style.css">
+    <title>Enter the Matrix</title>
+    <link rel="stylesheet" href="{% if base_path == '/' %}/{% else %}{{ base_path }}/{% endif %}static/style.css">
 </head>
 <body>
     <div class="container">
-        <h1>IP Whitelist Authentication</h1>
+        <div class="header">
+            <div class="matrix-bg"></div>
+            <div class="terminal-prompt">
+                <span class="prompt-text">root@matrix:~$</span>
+            </div>
+            <h1 class="matrix-title">Enter the Matrix</h1>
+            <p class="subtitle">> Access granted upon authentication</p>
+        </div>
         <form id="authForm">
             <div class="form-group">
-                <label for="credential_id">Credential ID:</label>
-                <input type="text" id="credential_id" name="credential_id" required>
+                <label for="credential_id">Credential ID</label>
+                <input type="text" id="credential_id" name="credential_id" placeholder="Enter your credential ID" required autocomplete="username">
             </div>
             <div class="form-group">
-                <label for="password">Password:</label>
-                <input type="password" id="password" name="password" required>
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" placeholder="Enter your password" required autocomplete="current-password">
             </div>
-            <button type="submit">Authenticate</button>
+            <button type="submit" id="submitBtn">
+                <span class="button-text">Authenticate</span>
+                <span class="button-loader" style="display: none;">
+                    <svg class="spinner" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round" stroke-dasharray="32" stroke-dashoffset="32">
+                            <animate attributeName="stroke-dasharray" dur="2s" values="0 32;16 16;0 32;0 32" repeatCount="indefinite"/>
+                            <animate attributeName="stroke-dashoffset" dur="2s" values="0;-16;-32;-32" repeatCount="indefinite"/>
+                        </circle>
+                    </svg>
+                </span>
+            </button>
         </form>
         <div id="message" class="message"></div>
     </div>
@@ -27,10 +44,19 @@
         const messageDiv = document.getElementById('message');
         const basePath = '{{ base_path }}';
         
+        const submitBtn = document.getElementById('submitBtn');
+        const buttonText = submitBtn.querySelector('.button-text');
+        const buttonLoader = submitBtn.querySelector('.button-loader');
+        
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             messageDiv.textContent = '';
             messageDiv.className = 'message';
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            buttonText.style.display = 'none';
+            buttonLoader.style.display = 'inline-block';
             
             const credentialId = document.getElementById('credential_id').value;
             const password = document.getElementById('password').value;
@@ -50,16 +76,45 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    messageDiv.textContent = `Success! Your IP (${data.ip}) has been added to the whitelist.`;
+                    messageDiv.innerHTML = `
+                        <svg class="message-icon" viewBox="0 0 24 24" fill="none">
+                            <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <div>
+                            <strong>Success!</strong>
+                            <p>Your IP address <code>${data.ip}</code> has been added to the whitelist.</p>
+                        </div>
+                    `;
                     messageDiv.className = 'message success';
                     form.reset();
                 } else {
-                    messageDiv.textContent = data.error || 'Authentication failed';
+                    messageDiv.innerHTML = `
+                        <svg class="message-icon" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 8V12M12 16H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <div>
+                            <strong>Authentication Failed</strong>
+                            <p>${data.error || 'Invalid credentials. Please try again.'}</p>
+                        </div>
+                    `;
                     messageDiv.className = 'message error';
                 }
             } catch (error) {
-                messageDiv.textContent = 'An error occurred. Please try again.';
+                messageDiv.innerHTML = `
+                    <svg class="message-icon" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 8V12M12 16H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <div>
+                        <strong>Error</strong>
+                        <p>An error occurred. Please try again.</p>
+                    </div>
+                `;
                 messageDiv.className = 'message error';
+            } finally {
+                // Reset button state
+                submitBtn.disabled = false;
+                buttonText.style.display = 'inline';
+                buttonLoader.style.display = 'none';
             }
         });
     </script>

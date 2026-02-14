@@ -4,101 +4,422 @@
     box-sizing: border-box;
 }
 
+:root {
+    --matrix-green: #00ff41;
+    --matrix-green-dark: #00cc33;
+    --matrix-green-bright: #39ff14;
+    --matrix-bg: #000000;
+    --matrix-bg-dark: #0a0a0a;
+    --matrix-text: #00ff41;
+    --matrix-text-dim: #00cc33;
+    --matrix-border: #00ff41;
+    --matrix-glow: rgba(0, 255, 65, 0.5);
+    --success: #00ff41;
+    --error: #ff0040;
+}
+
+@font-face {
+    font-family: 'Matrix';
+    src: local('Courier New'), local('Monaco'), local('Menlo'), monospace;
+}
+
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
+    background: var(--matrix-bg);
     min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
     padding: 20px;
+    color: var(--matrix-text);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Matrix background effect */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+        repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(0, 255, 65, 0.03) 2px,
+            rgba(0, 255, 65, 0.03) 4px
+        );
+    pointer-events: none;
+    z-index: 0;
 }
 
 .container {
-    background: white;
-    border-radius: 10px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    background: var(--matrix-bg-dark);
+    border: 2px solid var(--matrix-border);
+    border-radius: 0;
+    box-shadow: 
+        0 0 20px var(--matrix-glow),
+        0 0 40px rgba(0, 255, 65, 0.3),
+        inset 0 0 20px rgba(0, 255, 65, 0.1);
     padding: 40px;
-    max-width: 400px;
+    max-width: 480px;
     width: 100%;
+    animation: matrixFadeIn 0.8s ease-out, matrixGlow 3s ease-in-out infinite;
+    position: relative;
+    z-index: 1;
 }
 
-h1 {
-    color: #333;
-    margin-bottom: 30px;
+@keyframes matrixFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+        filter: blur(5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+        filter: blur(0);
+    }
+}
+
+@keyframes matrixGlow {
+    0%, 100% {
+        box-shadow: 
+            0 0 20px var(--matrix-glow),
+            0 0 40px rgba(0, 255, 65, 0.3),
+            inset 0 0 20px rgba(0, 255, 65, 0.1);
+    }
+    50% {
+        box-shadow: 
+            0 0 30px var(--matrix-glow),
+            0 0 60px rgba(0, 255, 65, 0.5),
+            inset 0 0 30px rgba(0, 255, 65, 0.2);
+    }
+}
+
+.header {
     text-align: center;
-    font-size: 24px;
+    margin-bottom: 32px;
+    position: relative;
+}
+
+.matrix-bg {
+    position: absolute;
+    top: -20px;
+    left: -20px;
+    right: -20px;
+    bottom: -20px;
+    background: 
+        repeating-linear-gradient(
+            90deg,
+            transparent,
+            transparent 2px,
+            rgba(0, 255, 65, 0.05) 2px,
+            rgba(0, 255, 65, 0.05) 4px
+        );
+    pointer-events: none;
+    opacity: 0.3;
+}
+
+.terminal-prompt {
+    margin-bottom: 16px;
+    text-align: left;
+    font-size: 12px;
+    color: var(--matrix-text-dim);
+    font-family: 'Courier New', monospace;
+}
+
+.prompt-text {
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0.3; }
+}
+
+h1.matrix-title {
+    color: var(--matrix-green);
+    margin-bottom: 12px;
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    text-shadow: 
+        0 0 10px var(--matrix-green),
+        0 0 20px var(--matrix-green),
+        0 0 30px var(--matrix-green);
+    animation: titleGlow 2s ease-in-out infinite;
+    font-family: 'Courier New', monospace;
+}
+
+@keyframes titleGlow {
+    0%, 100% {
+        text-shadow: 
+            0 0 10px var(--matrix-green),
+            0 0 20px var(--matrix-green),
+            0 0 30px var(--matrix-green);
+    }
+    50% {
+        text-shadow: 
+            0 0 15px var(--matrix-green-bright),
+            0 0 30px var(--matrix-green-bright),
+            0 0 45px var(--matrix-green-bright);
+    }
+}
+
+.subtitle {
+    color: var(--matrix-text-dim);
+    font-size: 13px;
+    line-height: 1.6;
+    margin-top: 8px;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 1px;
 }
 
 .form-group {
-    margin-bottom: 20px;
+    margin-bottom: 24px;
 }
 
 label {
     display: block;
     margin-bottom: 8px;
-    color: #555;
-    font-weight: 500;
+    color: var(--matrix-text);
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-family: 'Courier New', monospace;
 }
 
 input[type="text"],
 input[type="password"] {
     width: 100%;
-    padding: 12px;
-    border: 2px solid #e0e0e0;
-    border-radius: 5px;
-    font-size: 16px;
-    transition: border-color 0.3s;
+    padding: 14px 16px;
+    border: 2px solid var(--matrix-border);
+    border-radius: 0;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    background: var(--matrix-bg);
+    color: var(--matrix-green);
+    font-family: 'Courier New', monospace;
+    letter-spacing: 1px;
+    box-shadow: 
+        inset 0 0 10px rgba(0, 255, 65, 0.1),
+        0 0 10px rgba(0, 255, 65, 0.2);
 }
 
 input[type="text"]:focus,
 input[type="password"]:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: var(--matrix-green-bright);
+    background: var(--matrix-bg-dark);
+    box-shadow: 
+        inset 0 0 20px rgba(0, 255, 65, 0.2),
+        0 0 20px var(--matrix-glow),
+        0 0 40px rgba(0, 255, 65, 0.4);
+    transform: translateY(-2px);
+}
+
+input[type="text"]::placeholder,
+input[type="password"]::placeholder {
+    color: var(--matrix-text-dim);
+    opacity: 0.5;
+    font-family: 'Courier New', monospace;
 }
 
 button {
     width: 100%;
-    padding: 12px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    border-radius: 5px;
-    font-size: 16px;
-    font-weight: 600;
+    padding: 16px;
+    background: var(--matrix-bg);
+    color: var(--matrix-green);
+    border: 2px solid var(--matrix-border);
+    border-radius: 0;
+    font-size: 14px;
+    font-weight: 700;
     cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 
+        0 0 10px var(--matrix-glow),
+        inset 0 0 10px rgba(0, 255, 65, 0.1);
+    margin-top: 8px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-family: 'Courier New', monospace;
 }
 
-button:hover {
+button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(0, 255, 65, 0.2),
+        transparent
+    );
+    transition: left 0.5s;
+}
+
+button:hover:not(:disabled)::before {
+    left: 100%;
+}
+
+button:hover:not(:disabled) {
+    background: var(--matrix-bg-dark);
+    border-color: var(--matrix-green-bright);
+    box-shadow: 
+        0 0 20px var(--matrix-glow),
+        0 0 40px rgba(0, 255, 65, 0.5),
+        inset 0 0 20px rgba(0, 255, 65, 0.2);
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    color: var(--matrix-green-bright);
+    text-shadow: 0 0 10px var(--matrix-green);
 }
 
-button:active {
+button:active:not(:disabled) {
     transform: translateY(0);
 }
 
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.button-loader {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.spinner {
+    width: 20px;
+    height: 20px;
+    color: var(--matrix-green);
+}
+
 .message {
-    margin-top: 20px;
-    padding: 12px;
-    border-radius: 5px;
-    text-align: center;
-    font-size: 14px;
+    margin-top: 24px;
+    padding: 16px;
+    border-radius: 0;
+    font-size: 13px;
     display: none;
+    animation: matrixSlideDown 0.3s ease-out;
+    border: 2px solid;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.5px;
+}
+
+@keyframes matrixSlideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+        filter: blur(3px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+        filter: blur(0);
+    }
 }
 
 .message.success {
-    background-color: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
-    display: block;
+    background-color: rgba(0, 255, 65, 0.1);
+    color: var(--matrix-green);
+    border-color: var(--matrix-green);
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    box-shadow: 
+        0 0 10px rgba(0, 255, 65, 0.3),
+        inset 0 0 10px rgba(0, 255, 65, 0.1);
 }
 
 .message.error {
-    background-color: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
-    display: block;
+    background-color: rgba(255, 0, 64, 0.1);
+    color: #ff0040;
+    border-color: #ff0040;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    box-shadow: 
+        0 0 10px rgba(255, 0, 64, 0.3),
+        inset 0 0 10px rgba(255, 0, 64, 0.1);
 }
 
+.message-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.message div {
+    flex: 1;
+}
+
+.message strong {
+    display: block;
+    margin-bottom: 4px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.message p {
+    margin: 0;
+    line-height: 1.6;
+    opacity: 0.9;
+}
+
+.message code {
+    background: rgba(0, 255, 65, 0.2);
+    padding: 2px 6px;
+    border-radius: 0;
+    font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
+    font-size: 12px;
+    border: 1px solid var(--matrix-green);
+    color: var(--matrix-green-bright);
+}
+
+/* Responsive design */
+@media (max-width: 480px) {
+    .container {
+        padding: 32px 24px;
+    }
+    
+    h1.matrix-title {
+        font-size: 24px;
+        letter-spacing: 2px;
+    }
+    
+    .subtitle {
+        font-size: 11px;
+    }
+}
+
+/* Matrix rain effect (subtle) */
+@keyframes matrixRain {
+    0% {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(100vh);
+        opacity: 0;
+    }
+}
