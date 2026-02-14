@@ -1,4 +1,4 @@
-# IP Whitelist Authentication Application
+# hello-ip
 
 A simple web application for authenticating users and maintaining an IP whitelist with configurable expiration and maximum entry limits.
 
@@ -16,7 +16,7 @@ A simple web application for authenticating users and maintaining an IP whitelis
 
 1. Build the Docker image:
 ```bash
-docker build -t ip-whitelist-app .
+docker build -t hello-ip .
 ```
 
 2. Generate password hashes using the helper script:
