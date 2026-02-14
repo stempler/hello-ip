@@ -14,6 +14,14 @@ class Config:
     MAX_ENTRIES: int = int(os.getenv('MAX_ENTRIES', '1000'))
     DATABASE_PATH: str = os.getenv('DATABASE_PATH', '/data/whitelist.db')
     
+    # BunkerWeb API integration
+    BUNKERWEB_ENABLED: bool = os.getenv('BUNKERWEB_ENABLED', 'false').lower() == 'true'
+    BUNKERWEB_API_URL: str = os.getenv('BUNKERWEB_API_URL', '').rstrip('/')
+    BUNKERWEB_USERNAME: str = os.getenv('BUNKERWEB_USERNAME', '')
+    BUNKERWEB_PASSWORD: str = os.getenv('BUNKERWEB_PASSWORD', '')
+    BUNKERWEB_JOB_PLUGIN: str = os.getenv('BUNKERWEB_JOB_PLUGIN', 'greylist')
+    BUNKERWEB_JOB_NAME: str = os.getenv('BUNKERWEB_JOB_NAME', 'greylist-download')
+    
     @staticmethod
     def get_credentials() -> Dict[str, str]:
         """Parse credentials from environment variable.

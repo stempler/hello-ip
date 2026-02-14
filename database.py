@@ -69,6 +69,16 @@ def add_whitelist_entry(ip: str, credential_id: str):
     # Cleanup after adding entry
     cleanup_expired_entries()
     enforce_max_entries()
+    
+    # Notify BunkerWeb of whitelist change (non-blocking)
+    if Config.BUNKERWEB_ENABLED:
+        import threading
+        import bunkerweb
+        thread = threading.Thread(
+            target=bunkerweb.notify_whitelist_change,
+            daemon=True
+        )
+        thread.start()
 
 
 def check_ip_status(ip: str) -> Optional[Dict[str, Any]]:
