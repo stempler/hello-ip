@@ -1,7 +1,7 @@
 """SQLite database operations for whitelist entries."""
 import sqlite3
 import datetime
-from typing import List
+from typing import List, Dict, Any
 from werkzeug.security import check_password_hash
 from config import Config
 
@@ -87,6 +87,54 @@ def get_valid_ips() -> List[str]:
     conn.close()
     
     return ips
+
+
+def get_all_whitelist_entries(valid_only: bool = True) -> List[Dict[str, Any]]:
+    """Get all whitelist entries with full information.
+    
+    Args:
+        valid_only: If True, only return non-expired entries. If False, return all entries.
+    
+    Returns:
+        List of dictionaries containing entry information.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    now = datetime.datetime.utcnow()
+    now_iso = now.isoformat()
+    
+    if valid_only:
+        cursor.execute('''
+            SELECT ip, credential_id, auth_time, expires_at
+            FROM whitelist_entries
+            WHERE expires_at > ?
+            ORDER BY auth_time DESC
+        ''', (now_iso,))
+    else:
+        cursor.execute('''
+            SELECT ip, credential_id, auth_time, expires_at
+            FROM whitelist_entries
+            ORDER BY auth_time DESC
+        ''')
+    
+    entries = []
+    for row in cursor.fetchall():
+        auth_time = datetime.datetime.fromisoformat(row['auth_time'])
+        expires_at = datetime.datetime.fromisoformat(row['expires_at'])
+        is_valid = expires_at > now
+        
+        entries.append({
+            'ip': row['ip'],
+            'credential_id': row['credential_id'],
+            'auth_time': row['auth_time'],
+            'expires_at': row['expires_at'],
+            'is_valid': is_valid,
+            'remaining_seconds': max(0, int((expires_at - now).total_seconds())) if is_valid else 0
+        })
+    
+    conn.close()
+    return entries
 
 
 def cleanup_expired_entries():

@@ -14,11 +14,10 @@
                 <span class="prompt-text">root@matrix:~$</span>
             </div>
             <h1 class="matrix-title">Enter the Matrix</h1>
-            <p class="subtitle">> Access granted upon authentication</p>
         </div>
         <form id="authForm">
             <div class="form-group">
-                <label for="credential_id">Credential ID</label>
+                <label for="credential_id">ID</label>
                 <input type="text" id="credential_id" name="credential_id" placeholder="Enter your credential ID" required autocomplete="username">
             </div>
             <div class="form-group">
@@ -26,7 +25,7 @@
                 <input type="password" id="password" name="password" placeholder="Enter your password" required autocomplete="current-password">
             </div>
             <button type="submit" id="submitBtn">
-                <span class="button-text">Authenticate</span>
+                <span class="button-text">Enter</span>
                 <span class="button-loader" style="display: none;">
                     <svg class="spinner" viewBox="0 0 24 24">
                         <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round" stroke-dasharray="32" stroke-dashoffset="32">
@@ -84,7 +83,7 @@
                         </svg>
                         <div>
                             <strong>Success!</strong>
-                            <p>Your IP address <code>${data.ip}</code> has been added to the whitelist.</p>
+                            <p>You are known to us now as <code>${data.ip}</code>.</p>
                         </div>
                     `;
                     messageDiv.className = 'message success';

@@ -99,6 +99,25 @@ Example `CREDENTIALS` environment variable:
 ### Internal Endpoint (Port 8081)
 
 - `GET /whitelist.txt` - Returns text file with valid IP addresses (one per line)
+- `GET /whitelist.json` - Returns JSON with all whitelist entry information
+  - Query parameter `?all=true` - Include expired entries (default: only valid entries)
+  - Response format:
+    ```json
+    {
+      "count": 5,
+      "valid_only": true,
+      "entries": [
+        {
+          "ip": "192.168.1.1",
+          "credential_id": "admin",
+          "auth_time": "2024-01-15T10:30:00",
+          "expires_at": "2024-01-16T10:30:00",
+          "is_valid": true,
+          "remaining_seconds": 86400
+        }
+      ]
+    }
+    ```
 
 ## Development
 

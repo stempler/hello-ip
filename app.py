@@ -90,6 +90,23 @@ def get_whitelist():
     return Response(content, mimetype='text/plain')
 
 
+@internal_app.route('/whitelist.json')
+def get_whitelist_json():
+    """Return JSON with all whitelist entry information."""
+    from flask import request
+    
+    # Check if 'all' query parameter is set to include expired entries
+    valid_only = request.args.get('all', 'false').lower() != 'true'
+    
+    entries = database.get_all_whitelist_entries(valid_only=valid_only)
+    
+    return jsonify({
+        'count': len(entries),
+        'valid_only': valid_only,
+        'entries': entries
+    })
+
+
 def main():
     """Initialize database and start both Flask applications."""
     # Ensure database directory exists
