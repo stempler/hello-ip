@@ -1,7 +1,21 @@
 """Main Flask application for IP whitelist authentication."""
 import ipaddress
+import logging
+import os
+import sys
 from flask import Flask, request, render_template, jsonify, Response, send_from_directory
 from config import Config
+
+# Configure logging to output to stderr (captured by gunicorn's error log)
+# This must be done before importing modules that use logging
+log_level = os.getenv('LOG_LEVEL', 'INFO').upper()
+logging.basicConfig(
+    level=getattr(logging, log_level, logging.INFO),
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    stream=sys.stderr,
+    force=True  # Override any existing configuration
+)
+
 import database
 
 
