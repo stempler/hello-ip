@@ -289,8 +289,61 @@ def trigger_job(plugin: str, name: str) -> bool:
         return False
 
 
-def notify_whitelist_change() -> None:
+def unban_ip(ip: str) -> bool:
+    """Unban an IP address in BunkerWeb.
+    
+    Args:
+        ip: IP address to unban
+        
+    Returns:
+        True if successful, False otherwise.
+    """
+    token = get_token()
+    if not token:
+        logger.error("Cannot unban IP in BunkerWeb: no valid token")
+        return False
+    
+    try:
+        bans_url = f"{Config.BUNKERWEB_API_URL}/bans"
+        payload = [{"ip": ip}]
+        
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            "accept": "application/json"
+        }
+        
+        response = requests.delete(
+            bans_url,
+            json=payload,
+            headers=headers,
+            timeout=10
+        )
+        response.raise_for_status()
+        
+        logger.info(f"Successfully unbanned IP in BunkerWeb: {ip}")
+        return True
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"BunkerWeb IP unban failed for {ip}: {e}")
+        # Token might be invalid, clear cache
+        with _token_lock:
+            _token_cache['token'] = None
+            _token_cache['expires_at'] = None
+        return False
+    except Exception as e:
+        logger.error(f"Unexpected error unbanning IP {ip}: {e}")
+        return False
+
+
+def notify_whitelist_change(ip: Optional[str] = None) -> None:
     """Notify BunkerWeb of whitelist change by clearing cache and triggering configured job.
+    
+    Optionally unban the IP address if configured to do so.
+    
+    Args:
+        ip: Optional IP address that was whitelisted. If provided and unbanning is enabled,
+            this IP will be unbanned after the job is triggered.
     
     This function is thread-safe and handles errors gracefully.
     It runs in a non-blocking manner and logs errors without raising exceptions.
@@ -315,6 +368,13 @@ def notify_whitelist_change() -> None:
             success = trigger_job(Config.BUNKERWEB_JOB_PLUGIN, Config.BUNKERWEB_JOB_NAME)
             if not success:
                 logger.warning("BunkerWeb job trigger failed, but continuing whitelist operation")
+            
+            # Optionally unban the IP if enabled and IP is provided
+            if Config.BUNKERWEB_UNBAN_ENABLED and ip:
+                logger.info(f"Unbanning IP in BunkerWeb: {ip}")
+                unban_success = unban_ip(ip)
+                if not unban_success:
+                    logger.warning(f"BunkerWeb IP unban failed for {ip}, but continuing whitelist operation")
         except Exception as e:
             # Catch any unexpected errors to ensure whitelist operations continue
             logger.error(f"Unexpected error in BunkerWeb notification: {e}", exc_info=True)

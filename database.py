@@ -76,6 +76,7 @@ def add_whitelist_entry(ip: str, credential_id: str):
         import bunkerweb
         thread = threading.Thread(
             target=bunkerweb.notify_whitelist_change,
+            args=(ip,),
             daemon=True
         )
         thread.start()
