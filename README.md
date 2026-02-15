@@ -236,8 +236,12 @@ To enable BunkerWeb integration, set the following environment variables:
 -e BUNKERWEB_USERNAME="api_user" \
 -e BUNKERWEB_PASSWORD="api_password" \
 -e BUNKERWEB_JOB_PLUGIN="greylist" \
--e BUNKERWEB_JOB_NAME="greylist-download"
+-e BUNKERWEB_JOB_NAME="greylist-download" \
+-e BUNKERWEB_UNBAN_ENABLED=true
 ```
+
+**Optional Configuration:**
+- `BUNKERWEB_UNBAN_ENABLED`: When set to `true`, automatically unban the whitelisted IP address in BunkerWeb after triggering the job. This ensures newly whitelisted IPs are immediately unbanned. Default: `false`.
 
 ### How It Works
 
@@ -245,7 +249,9 @@ To enable BunkerWeb integration, set the following environment variables:
 
 2. **Token Management**: The authentication token is cached and reused for subsequent API calls. The token is refreshed automatically when it expires.
 
-3. **Job Triggering**: After successful authentication, the application triggers the configured job by sending a POST request to `/jobs/run` with the following payload:
+3. **Cache Clearing**: Before triggering the job, the application clears relevant cache files to ensure the job uses fresh data.
+
+4. **Job Triggering**: After clearing cache, the application triggers the configured job by sending a POST request to `/jobs/run` with the following payload:
    ```json
    {
      "jobs": [
@@ -257,9 +263,12 @@ To enable BunkerWeb integration, set the following environment variables:
    }
    ```
 
-4. **Concurrency Handling**: All BunkerWeb API calls are serialized using a lock mechanism to prevent conflicts when multiple whitelist updates occur simultaneously.
+5. **IP Unbanning** (Optional): If `BUNKERWEB_UNBAN_ENABLED` is set to `true`, after triggering the job, the application will automatically unban the whitelisted IP address by sending a DELETE request to `/bans`.
+   This ensures that newly whitelisted IPs are immediately unbanned in BunkerWeb.
 
-5. **Error Handling**: BunkerWeb integration failures are logged but do not affect whitelist operations. The application continues to function normally even if BunkerWeb is unavailable.
+6. **Concurrency Handling**: All BunkerWeb API calls are serialized using a lock mechanism to prevent conflicts when multiple whitelist updates occur simultaneously.
+
+7. **Error Handling**: BunkerWeb integration failures are logged but do not affect whitelist operations. The application continues to function normally even if BunkerWeb is unavailable.
 
 ### Example Docker Run with BunkerWeb
 
@@ -273,6 +282,9 @@ docker run -d \
   -e BUNKERWEB_API_URL="http://bunkerweb:8080" \
   -e BUNKERWEB_USERNAME="bunkerweb_user" \
   -e BUNKERWEB_PASSWORD="bunkerweb_pass" \
+  -e BUNKERWEB_JOB_PLUGIN="greylist" \
+  -e BUNKERWEB_JOB_NAME="greylist-download" \
+  -e BUNKERWEB_UNBAN_ENABLED=true \
   --name hello-ip \
   hello-ip
 ```

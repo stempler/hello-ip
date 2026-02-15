@@ -21,6 +21,7 @@ class Config:
     BUNKERWEB_PASSWORD: str = os.getenv('BUNKERWEB_PASSWORD', '')
     BUNKERWEB_JOB_PLUGIN: str = os.getenv('BUNKERWEB_JOB_PLUGIN', 'greylist')
     BUNKERWEB_JOB_NAME: str = os.getenv('BUNKERWEB_JOB_NAME', 'greylist-download')
+    BUNKERWEB_UNBAN_ENABLED: bool = os.getenv('BUNKERWEB_UNBAN_ENABLED', 'false').lower() == 'true'
     
     @staticmethod
     def get_credentials() -> Dict[str, str]:
