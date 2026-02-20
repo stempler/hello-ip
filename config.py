@@ -14,6 +14,17 @@ class Config:
     MAX_ENTRIES: int = int(os.getenv('MAX_ENTRIES', '1000'))
     DATABASE_PATH: str = os.getenv('DATABASE_PATH', '/data/whitelist.db')
     
+    # LDAP authentication (defaults target LLDAP)
+    LDAP_ENABLED: bool = os.getenv('LDAP_ENABLED', 'false').lower() == 'true'
+    LDAP_SERVER: str = os.getenv('LDAP_SERVER', 'ldap://localhost:3890')
+    LDAP_BASE_DN: str = os.getenv('LDAP_BASE_DN', 'dc=example,dc=com')
+    LDAP_BIND_DN: str = os.getenv('LDAP_BIND_DN', 'uid=admin,ou=people,dc=example,dc=com')
+    LDAP_BIND_PASSWORD: str = os.getenv('LDAP_BIND_PASSWORD', '')
+    LDAP_USER_DN_TEMPLATE: str = os.getenv('LDAP_USER_DN_TEMPLATE', 'uid={},ou=people,{}')
+    LDAP_USER_FILTER: str = os.getenv('LDAP_USER_FILTER', '(&(objectClass=person)(uid={}))')
+    LDAP_USE_TLS: bool = os.getenv('LDAP_USE_TLS', 'false').lower() == 'true'
+    LDAP_FALLBACK_LOCAL: bool = os.getenv('LDAP_FALLBACK_LOCAL', 'true').lower() == 'true'
+    
     # BunkerWeb API integration
     BUNKERWEB_ENABLED: bool = os.getenv('BUNKERWEB_ENABLED', 'false').lower() == 'true'
     BUNKERWEB_API_URL: str = os.getenv('BUNKERWEB_API_URL', '').rstrip('/')

@@ -38,8 +38,16 @@ def init_db():
     conn.close()
 
 
-def verify_credential(credential_id: str, password: str) -> bool:
-    """Verify a credential ID and password against environment configuration."""
+def verify_local_credential(credential_id: str, password: str) -> bool:
+    """Verify credentials against local environment configuration.
+    
+    Args:
+        credential_id: The credential identifier
+        password: The password to verify
+        
+    Returns:
+        True if credentials are valid, False otherwise
+    """
     credentials = Config.get_credentials()
     
     if credential_id not in credentials:
@@ -47,6 +55,35 @@ def verify_credential(credential_id: str, password: str) -> bool:
     
     password_hash = credentials[credential_id]
     return check_password_hash(password_hash, password)
+
+
+def verify_credential(credential_id: str, password: str) -> bool:
+    """Verify credentials using configured authentication backend.
+    
+    If LDAP is enabled, attempts LDAP authentication first.
+    Falls back to local credentials if configured.
+    
+    Args:
+        credential_id: The credential identifier (username for LDAP)
+        password: The password to verify
+        
+    Returns:
+        True if credentials are valid, False otherwise
+    """
+    if Config.LDAP_ENABLED:
+        # Try LDAP authentication
+        import ldap_auth
+        if ldap_auth.verify_ldap_credential(credential_id, password):
+            return True
+        
+        # LDAP failed - check if we should fall back to local credentials
+        if Config.LDAP_FALLBACK_LOCAL:
+            return verify_local_credential(credential_id, password)
+        
+        return False
+    
+    # LDAP not enabled - use local credentials only
+    return verify_local_credential(credential_id, password)
 
 
 def add_whitelist_entry(ip: str, credential_id: str):
