@@ -9,6 +9,7 @@ A simple web application for authenticating users and maintaining an IP whitelis
 - Internal endpoint for retrieving whitelist as text file
 - Docker containerization with environment variable configuration
 - Support for multiple credentials
+- LDAP authentication support (with defaults targeting LLDAP)
 
 ## Quick Start
 
@@ -71,6 +72,15 @@ docker run -d \
 | `BUNKERWEB_PASSWORD` | BunkerWeb API password for basic auth | `` |
 | `BUNKERWEB_JOB_PLUGIN` | Job plugin name to trigger | `greylist` |
 | `BUNKERWEB_JOB_NAME` | Job name to trigger | `greylist-download` |
+| `LDAP_ENABLED` | Enable LDAP authentication | `false` |
+| `LDAP_SERVER` | LDAP server URL | `ldap://localhost:3890` |
+| `LDAP_BASE_DN` | Base DN for user searches | `dc=example,dc=com` |
+| `LDAP_BIND_DN` | Service account DN for binding | `uid=admin,ou=people,dc=example,dc=com` |
+| `LDAP_BIND_PASSWORD` | Service account password | `` |
+| `LDAP_USER_DN_TEMPLATE` | Template for user DN | `uid={},ou=people,{}` |
+| `LDAP_USER_FILTER` | Filter to find users | `(&(objectClass=person)(uid={}))` |
+| `LDAP_USE_TLS` | Use STARTTLS for connection | `false` |
+| `LDAP_FALLBACK_LOCAL` | Fall back to local credentials if LDAP fails | `true` |
 
 ### Credentials Format
 
@@ -221,6 +231,56 @@ The application uses SQLite with one table:
 - `whitelist_entries`: Stores IP addresses, credential IDs, authentication time, and expiration time
 
 **Note:** Credentials are not stored in the database. They are configured via the `CREDENTIALS` environment variable and verified at runtime.
+
+## LDAP Authentication
+
+The application supports LDAP as an alternative authentication backend. When enabled, users can authenticate against an LDAP server instead of (or in addition to) local credentials.
+
+### LDAP Configuration
+
+Default values are configured to work with [LLDAP](https://github.com/lldap/lldap) (Light LDAP).
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LDAP_ENABLED` | `false` | Enable LDAP authentication |
+| `LDAP_SERVER` | `ldap://localhost:3890` | LDAP server URL (LLDAP default port is 3890) |
+| `LDAP_BASE_DN` | `dc=example,dc=com` | Base DN for user searches |
+| `LDAP_BIND_DN` | `uid=admin,ou=people,dc=example,dc=com` | Service account DN for initial binding |
+| `LDAP_BIND_PASSWORD` | (empty) | Service account password |
+| `LDAP_USER_DN_TEMPLATE` | `uid={},ou=people,{}` | Template for constructing user DN (placeholders: username, base_dn) |
+| `LDAP_USER_FILTER` | `(&(objectClass=person)(uid={}))` | LDAP filter to find users (placeholder: username) |
+| `LDAP_USE_TLS` | `false` | Use STARTTLS for secure connection |
+| `LDAP_FALLBACK_LOCAL` | `true` | Fall back to local credentials if LDAP auth fails |
+
+### Authentication Flow
+
+1. If `LDAP_ENABLED=true`, the application first attempts LDAP authentication
+2. If LDAP authentication fails and `LDAP_FALLBACK_LOCAL=true`, it tries local credentials
+3. If `LDAP_ENABLED=false`, only local credentials are used
+
+### Example: LLDAP Configuration
+
+```bash
+docker run -d \
+  -p 8080:8080 \
+  -p 8081:8081 \
+  -v whitelist-data:/data \
+  -e LDAP_ENABLED=true \
+  -e LDAP_SERVER="ldap://lldap:3890" \
+  -e LDAP_BASE_DN="dc=example,dc=com" \
+  -e LDAP_BIND_DN="uid=admin,ou=people,dc=example,dc=com" \
+  -e LDAP_BIND_PASSWORD="admin_password" \
+  -e LDAP_FALLBACK_LOCAL=false \
+  --name hello-ip \
+  hello-ip
+```
+
+### Notes
+
+- The `LDAP_USER_DN_TEMPLATE` uses `{}` as placeholders: the first `{}` is replaced with the username, the second with `LDAP_BASE_DN`
+- If `LDAP_BIND_DN` and `LDAP_BIND_PASSWORD` are provided, the application will use them to search for users; otherwise, it constructs the user DN directly from the template
+- LLDAP uses port 3890 by default (not the standard LDAP port 389)
+- For LDAPS (LDAP over SSL), use `ldaps://` in the server URL instead of enabling `LDAP_USE_TLS`
 
 ## BunkerWeb Integration
 

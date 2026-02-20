@@ -49,3 +49,6 @@ Thumbs.db
 # Mise
 .mise/
 mise.local.toml
+
+.coverage
+/coverage.xml
