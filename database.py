@@ -76,10 +76,42 @@ def add_whitelist_entry(ip: str, credential_id: str):
         import bunkerweb
         thread = threading.Thread(
             target=bunkerweb.notify_whitelist_change,
-            args=(ip,),
+            args=(ip, 'add'),
             daemon=True
         )
         thread.start()
+
+
+def remove_whitelist_entry(ip: str) -> bool:
+    """Remove a whitelist entry by IP address.
+    
+    Args:
+        ip: IP address to remove from whitelist
+        
+    Returns:
+        True if entry was removed, False if not found
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('DELETE FROM whitelist_entries WHERE ip = ?', (ip,))
+    removed = cursor.rowcount > 0
+    
+    conn.commit()
+    conn.close()
+    
+    # Notify BunkerWeb of whitelist change (non-blocking)
+    if removed and Config.BUNKERWEB_ENABLED:
+        import threading
+        import bunkerweb
+        thread = threading.Thread(
+            target=bunkerweb.notify_whitelist_change,
+            args=(ip, 'remove'),
+            daemon=True
+        )
+        thread.start()
+    
+    return removed
 
 
 def check_ip_status(ip: str) -> Optional[Dict[str, Any]]:

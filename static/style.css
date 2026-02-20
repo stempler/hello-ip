@@ -486,11 +486,15 @@ button:disabled {
     line-height: 1;
 }
 
-.extend-link-container {
+.action-links-container {
     margin-top: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
 }
 
-.extend-link {
+.action-link {
     color: var(--matrix-text-dim);
     text-decoration: none;
     font-size: 12px;
@@ -502,10 +506,22 @@ button:disabled {
     padding-bottom: 2px;
 }
 
-.extend-link:hover {
+.action-link:hover {
     color: var(--matrix-green);
     border-bottom-color: var(--matrix-green);
     text-shadow: 0 0 5px var(--matrix-green);
+}
+
+.action-separator {
+    color: var(--matrix-text-dim);
+    opacity: 0.5;
+    font-size: 12px;
+}
+
+.leave-link:hover {
+    color: var(--error);
+    border-bottom-color: var(--error);
+    text-shadow: 0 0 5px var(--error);
 }
 
 /* Responsive adjustments for countdown */
