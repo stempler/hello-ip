@@ -110,6 +110,30 @@ def authenticate():
     return jsonify(response), 200
 
 
+@main_app.route(Config.BASE_PATH + '/leave', methods=['DELETE'])
+def leave():
+    """Remove client IP from whitelist."""
+    client_ip = get_client_ip()
+    if not validate_ip(client_ip):
+        return jsonify({'error': 'Invalid IP address'}), 400
+    
+    # Check if IP is currently whitelisted
+    status = database.check_ip_status(client_ip)
+    if not status:
+        return jsonify({'error': 'IP not whitelisted'}), 404
+    
+    # Remove from whitelist
+    removed = database.remove_whitelist_entry(client_ip)
+    
+    if removed:
+        return jsonify({
+            'message': 'Successfully left the matrix',
+            'ip': client_ip
+        }), 200
+    else:
+        return jsonify({'error': 'Failed to remove IP'}), 500
+
+
 @main_app.route('/health')
 @main_app.route(Config.BASE_PATH + '/health')
 def health():

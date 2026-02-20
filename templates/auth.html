@@ -42,8 +42,10 @@
                         </span>
                     </div>
                 </div>
-                <div class="extend-link-container">
-                    <a href="#" id="extend-link" class="extend-link">Extend access</a>
+                <div class="action-links-container">
+                    <a href="#" id="extend-link" class="action-link extend-link">Extend access</a>
+                    <span class="action-separator">|</span>
+                    <a href="#" id="leave-link" class="action-link leave-link">Leave the Matrix</a>
                 </div>
             </div>
         </div>
@@ -60,7 +62,7 @@
             <form id="authForm">
                 <div class="form-group">
                     <label for="credential_id">ID</label>
-                    <input type="text" id="credential_id" name="credential_id" placeholder="Enter your credential ID" required autocomplete="username">
+                    <input type="text" id="credential_id" name="credential_id" placeholder="Enter your ID" required autocomplete="username">
                 </div>
                 <div class="form-group">
                     <label for="password">Password</label>
@@ -91,6 +93,7 @@
         const buttonText = submitBtn.querySelector('.button-text');
         const buttonLoader = submitBtn.querySelector('.button-loader');
         const extendLink = document.getElementById('extend-link');
+        const leaveLink = document.getElementById('leave-link');
         
         let countdownInterval = null;
         let expiresAt = null;
@@ -276,6 +279,36 @@
         extendLink.addEventListener('click', (e) => {
             e.preventDefault();
             showLoginView();
+        });
+
+        // Handle leave link click
+        leaveLink.addEventListener('click', async (e) => {
+            e.preventDefault();
+            
+            if (!confirm('Are you sure you want to leave the Matrix? You will no longer be known to us.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(getUrl('/leave'), {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Successfully left - show login view
+                    showLoginView();
+                } else {
+                    alert(data.error || 'Failed to leave the Matrix. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error leaving:', error);
+                alert('An error occurred. Please try again.');
+            }
         });
 
         // Check status on page load

@@ -336,14 +336,16 @@ def unban_ip(ip: str) -> bool:
         return False
 
 
-def notify_whitelist_change(ip: Optional[str] = None) -> None:
+def notify_whitelist_change(ip: Optional[str] = None, action: str = 'add') -> None:
     """Notify BunkerWeb of whitelist change by clearing cache and triggering configured job.
     
-    Optionally unban the IP address if configured to do so.
+    Optionally unban the IP address if configured to do so (only on 'add' action).
     
     Args:
-        ip: Optional IP address that was whitelisted. If provided and unbanning is enabled,
-            this IP will be unbanned after the job is triggered.
+        ip: Optional IP address that was added/removed. If provided and unbanning is enabled,
+            this IP will be unbanned after the job is triggered (only for 'add' action).
+        action: The type of change - 'add' for new/extended entries, 'remove' for deletions.
+            Unbanning only happens on 'add' action.
     
     This function is thread-safe and handles errors gracefully.
     It runs in a non-blocking manner and logs errors without raising exceptions.
@@ -354,6 +356,8 @@ def notify_whitelist_change(ip: Optional[str] = None) -> None:
     if not Config.BUNKERWEB_API_URL:
         logger.warning("BunkerWeb integration enabled but API URL not configured")
         return
+    
+    logger.info(f"BunkerWeb notification triggered for action '{action}' on IP: {ip}")
     
     # Use lock to serialize API calls and prevent concurrent conflicts
     with _api_lock:
@@ -369,8 +373,8 @@ def notify_whitelist_change(ip: Optional[str] = None) -> None:
             if not success:
                 logger.warning("BunkerWeb job trigger failed, but continuing whitelist operation")
             
-            # Optionally unban the IP if enabled and IP is provided
-            if Config.BUNKERWEB_UNBAN_ENABLED and ip:
+            # Optionally unban the IP if enabled, IP is provided, and action is 'add'
+            if Config.BUNKERWEB_UNBAN_ENABLED and ip and action == 'add':
                 logger.info(f"Unbanning IP in BunkerWeb: {ip}")
                 unban_success = unban_ip(ip)
                 if not unban_success:
