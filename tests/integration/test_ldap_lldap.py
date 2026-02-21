@@ -588,8 +588,8 @@ class TestLLDAPIntegration:
         """Test authentication succeeds when user is in allowed group."""
         reload_modules()
         
-        # Create a test group
-        group_name = "whitelist-users"
+        # Create a test group with unique name to avoid conflicts with other tests
+        group_name = "test-group-user-in-group"
         group_created = lldap_container.create_test_group(group_name)
         if not group_created:
             pytest.skip("Could not create test group in LLDAP")
@@ -625,8 +625,8 @@ class TestLLDAPIntegration:
         """Test authentication fails when user is not in allowed group."""
         reload_modules()
         
-        # Create a test group
-        group_name = "whitelist-users"
+        # Create a test group with unique name to avoid conflicts with other tests
+        group_name = "test-group-user-not-in-group"
         group_created = lldap_container.create_test_group(group_name)
         if not group_created:
             pytest.skip("Could not create test group in LLDAP")
@@ -653,8 +653,8 @@ class TestLLDAPIntegration:
         """Test group access control with full DN format."""
         reload_modules()
         
-        # Create a test group
-        group_name = "whitelist-users"
+        # Create a test group with unique name to avoid conflicts with other tests
+        group_name = "test-group-full-dn-format"
         group_created = lldap_container.create_test_group(group_name)
         if not group_created:
             pytest.skip("Could not create test group in LLDAP")
@@ -687,7 +687,8 @@ class TestLLDAPIntegration:
         reload_modules()
         
         # Configure group-based access control but no service account
-        os.environ['LDAP_ALLOWED_GROUP'] = 'whitelist-users'
+        # Using a unique group name that doesn't need to exist for this test
+        os.environ['LDAP_ALLOWED_GROUP'] = 'test-group-missing-bind-dn'
         os.environ['LDAP_BIND_DN'] = ''
         os.environ['LDAP_BIND_PASSWORD'] = ''
         reload_modules()
