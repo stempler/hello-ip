@@ -440,9 +440,9 @@ class TestLdapGroupAccessControl:
             
             assert result is True
     
-    def test_group_check_invalid_dn_format_treated_as_group_name(self, ldap_config):
-        """Test that invalid DN formats (e.g., 'admin=users') are treated as simple group names."""
-        # Set a value that looks like it might be a DN (contains '=') but is actually invalid
+    def test_group_check_value_with_equals_treated_as_group_name(self, ldap_config):
+        """Test that values with '=' that aren't valid DNs (e.g., 'admin=users') are treated as group names."""
+        # Set a value that contains '=' but is not a valid multi-component DN
         os.environ['LDAP_ALLOWED_GROUP'] = 'admin=users'
         os.environ['LDAP_GROUP_DN_TEMPLATE'] = 'cn={},ou=groups,{}'
         reload_modules()
@@ -455,7 +455,7 @@ class TestLdapGroupAccessControl:
         # Expected: cn=admin=users,ou=groups,dc=example,dc=com
         # (The group name 'admin=users' is inserted into the template)
         assert result == 'cn=admin=users,ou=groups,dc=example,dc=com'
-        assert result != 'admin=users'  # Should NOT use the invalid DN as-is
+        assert result != 'admin=users'  # Should NOT use the invalid format as-is
     
     def test_group_check_empty_memberof(self, ldap_config):
         """Test authentication fails when user has no groups."""
