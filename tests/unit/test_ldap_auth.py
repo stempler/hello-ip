@@ -470,13 +470,27 @@ class TestLdapGroupAccessControl:
             mock_server_instance = Mock()
             mock_server.return_value = mock_server_instance
             
-            # Entry without memberOf attribute
-            mock_entry = Mock(entry_dn='uid=testuser,ou=people,dc=example,dc=com')
-            mock_entry.memberOf = None
+            # First search returns user entry, second search returns group
+            # entry that does NOT include the user in its member attribute.
+            mock_user_entry = Mock()
+            mock_user_entry.entry_dn = 'uid=testuser,ou=people,dc=example,dc=com'
+            
+            mock_group_entry = Mock()
+            mock_member = Mock()
+            mock_member.values = []  # No members, so user is not in the group
+            mock_group_entry.member = mock_member
             
             mock_bind_conn = Mock()
-            mock_bind_conn.entries = [mock_entry]
-            mock_connection.return_value = mock_bind_conn
+            mock_bind_conn.entries = [mock_user_entry]
+            search_call_count = [0]
+            def search_side_effect(*args, **kwargs):
+                search_call_count[0] += 1
+                if search_call_count[0] > 1:  # Second search is for group
+                    mock_bind_conn.entries = [mock_group_entry]
+            mock_bind_conn.search = Mock(side_effect=search_side_effect)
+            
+            mock_user_conn = Mock()
+            mock_connection.side_effect = [mock_bind_conn, mock_user_conn]
             
             from ldap_auth import verify_ldap_credential
             
