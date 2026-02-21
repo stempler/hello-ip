@@ -2,9 +2,7 @@ name: PR Checks
 
 on:
   pull_request:
-    branches:
-      - master
-      - main
+    # Run checks for any PR, regardless of target branch
 
 jobs:
   test:
