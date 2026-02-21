@@ -3,7 +3,8 @@ import logging
 from typing import Optional
 from ldap3 import Server, Connection, ALL, SUBTREE, Tls
 from ldap3.core.exceptions import LDAPException, LDAPBindError
-from ldap3.utils.dn import safe_dn
+from ldap3.utils.dn import safe_dn, parse_dn, LDAPInvalidDnError
+from ldap3.utils.conv import escape_filter_chars
 from config import Config
 
 logger = logging.getLogger(__name__)
@@ -22,11 +23,20 @@ def _get_allowed_group_dn() -> Optional[str]:
     if not group_value:
         return None
     
-    # If it already looks like a DN (contains '='), use it as-is
-    if '=' in group_value:
-        return group_value
+    # Check if it's already a valid DN using ldap3's DN parser
+    # A valid full DN should have multiple components (e.g., cn=group,ou=groups,dc=example,dc=com)
+    # Single-component DNs (e.g., "admin=users") are treated as group names for this application
+    try:
+        parsed = parse_dn(group_value)
+        # If parsing succeeds and has multiple components, it's a valid DN - use it as-is
+        # We require at least 2 components to distinguish full DNs from simple attribute=value pairs
+        if len(parsed) >= 2:
+            return group_value
+    except LDAPInvalidDnError:
+        # If parsing fails, it's not a DN
+        logger.debug(f"Value is not a valid DN, treating as group name: {group_value}")
     
-    # Otherwise, construct DN from template
+    # Treat as a simple group name and construct DN from template
     return Config.LDAP_GROUP_DN_TEMPLATE.format(group_value, Config.LDAP_BASE_DN)
 
 
@@ -108,13 +118,16 @@ def verify_ldap_credential(username: str, password: str) -> bool:
                     # LLDAP may not support memberOf, so search the group's member attribute
                     # Try searching by CN first (more reliable in LLDAP)
                     group_cn = allowed_group_dn.split(',')[0].split('=')[1] if '=' in allowed_group_dn else allowed_group_dn
+                    # Sanitize group_cn to prevent LDAP injection
+                    group_cn_escaped = escape_filter_chars(group_cn)
                     
                     # Search for group - filter by CN and objectClass to ensure we only get groups
-                    # LLDAP uses groupOfNames for groups. We require objectClass filter for security
-                    # to prevent matching non-group entries that might have the same CN.
+                    # We require objectClass filter for security to prevent matching non-group
+                    # entries that might have the same CN. The objectClass can be configured
+                    # via LDAP_GROUP_OBJECT_CLASS (default: groupOfNames).
                     bind_conn.search(
                         search_base=Config.LDAP_BASE_DN,
-                        search_filter=f"(&(cn={group_cn})(objectClass=groupOfNames))",
+                        search_filter=f"(&(cn={group_cn_escaped})(objectClass={Config.LDAP_GROUP_OBJECT_CLASS}))",
                         search_scope=SUBTREE,
                         attributes=['*']  # Request all attributes
                     )
@@ -149,8 +162,9 @@ def verify_ldap_credential(username: str, password: str) -> bool:
                         logger.debug(f"User '{username}' is a member of required group '{allowed_group_dn}'")
                     else:
                         logger.warning(
-                            f"Group '{allowed_group_dn}' (CN: {group_cn}) with objectClass=groupOfNames not found. "
-                            f"If using a different LDAP server, you may need to configure a different group objectClass."
+                            f"Group '{allowed_group_dn}' (CN: {group_cn}) with objectClass={Config.LDAP_GROUP_OBJECT_CLASS} not found. "
+                            f"If using a different LDAP server, configure LDAP_GROUP_OBJECT_CLASS appropriately "
+                            f"(e.g., 'group' for Active Directory, 'posixGroup' for POSIX groups)."
                         )
                         bind_conn.unbind()
                         return False
