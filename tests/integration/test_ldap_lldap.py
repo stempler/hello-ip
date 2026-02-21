@@ -588,8 +588,8 @@ class TestLLDAPIntegration:
         """Test authentication succeeds when user is in allowed group."""
         reload_modules()
         
-        # Create a test group
-        group_name = "whitelist-users"
+        # Create a test group with unique name to avoid conflicts with other tests
+        group_name = "test-group-user-in-group"
         group_created = lldap_container.create_test_group(group_name)
         if not group_created:
             pytest.skip("Could not create test group in LLDAP")
@@ -606,10 +606,6 @@ class TestLLDAPIntegration:
         if not added:
             pytest.skip("Could not add user to group in LLDAP")
         
-        # Give LLDAP a moment to update group membership (LDAP can be eventually consistent)
-        import time
-        time.sleep(2)
-        
         # Configure group-based access control
         os.environ['LDAP_ALLOWED_GROUP'] = group_name
         os.environ['LDAP_GROUP_DN_TEMPLATE'] = 'cn={},ou=groups,{}'
@@ -618,6 +614,7 @@ class TestLLDAPIntegration:
         from ldap_auth import verify_ldap_credential
         
         # Should succeed - user is in allowed group
+        # LLDAP makes group membership changes immediately available via LDAP queries
         result = verify_ldap_credential(test_username, test_password)
         assert result is True
     
@@ -625,8 +622,8 @@ class TestLLDAPIntegration:
         """Test authentication fails when user is not in allowed group."""
         reload_modules()
         
-        # Create a test group
-        group_name = "whitelist-users"
+        # Create a test group with unique name to avoid conflicts with other tests
+        group_name = "test-group-user-not-in-group"
         group_created = lldap_container.create_test_group(group_name)
         if not group_created:
             pytest.skip("Could not create test group in LLDAP")
@@ -653,8 +650,8 @@ class TestLLDAPIntegration:
         """Test group access control with full DN format."""
         reload_modules()
         
-        # Create a test group
-        group_name = "whitelist-users"
+        # Create a test group with unique name to avoid conflicts with other tests
+        group_name = "test-group-full-dn-format"
         group_created = lldap_container.create_test_group(group_name)
         if not group_created:
             pytest.skip("Could not create test group in LLDAP")
@@ -687,7 +684,8 @@ class TestLLDAPIntegration:
         reload_modules()
         
         # Configure group-based access control but no service account
-        os.environ['LDAP_ALLOWED_GROUP'] = 'whitelist-users'
+        # Using a unique group name that doesn't need to exist for this test
+        os.environ['LDAP_ALLOWED_GROUP'] = 'test-group-missing-bind-dn'
         os.environ['LDAP_BIND_DN'] = ''
         os.environ['LDAP_BIND_PASSWORD'] = ''
         reload_modules()

@@ -465,3 +465,66 @@ class TestLdapGroupAccessControl:
             result = verify_ldap_credential('testuser', 'valid_password')
             
             assert result is False
+    
+    def test_group_cn_sanitization(self, ldap_config):
+        """Test that group CN values are sanitized to prevent LDAP injection."""
+        # Use a simpler malicious input that clearly demonstrates injection attempt
+        os.environ['LDAP_ALLOWED_GROUP'] = 'cn=admin*)(uid=*,ou=groups,dc=example,dc=com'
+        reload_modules()
+        
+        with patch('ldap_auth.Server') as mock_server, \
+             patch('ldap_auth.Connection') as mock_connection:
+            
+            mock_server_instance = Mock()
+            mock_server.return_value = mock_server_instance
+            
+            mock_user_entry = Mock()
+            mock_user_entry.entry_dn = 'uid=testuser,ou=people,dc=example,dc=com'
+            
+            mock_bind_conn = Mock()
+            mock_bind_conn.entries = [mock_user_entry]
+            
+            search_call_count = [0]
+            captured_filters = []
+            
+            def search_side_effect(*args, **kwargs):
+                search_call_count[0] += 1
+                captured_filters.append(kwargs.get('search_filter', args[1] if len(args) > 1 else None))
+                if search_call_count[0] > 1:  # Second search is for group
+                    # Group not found
+                    mock_bind_conn.entries = []
+            
+            mock_bind_conn.search = Mock(side_effect=search_side_effect)
+            mock_connection.return_value = mock_bind_conn
+            
+            from ldap_auth import verify_ldap_credential
+            
+            result = verify_ldap_credential('testuser', 'valid_password')
+            
+            # Authentication should fail because group not found
+            assert result is False
+            
+            # Verify that the group search filter was properly escaped
+            assert len(captured_filters) >= 2
+            group_filter = captured_filters[1]  # Second search is for group
+            
+            # Verify all special characters are escaped
+            # * should become \\2a, ( should become \\28, ) should become \\29
+            assert '\\2a' in group_filter  # * is escaped
+            assert '\\28' in group_filter  # ( is escaped
+            assert '\\29' in group_filter  # ) is escaped
+            
+            # Verify the filter structure is correct
+            assert group_filter.startswith('(&(cn=')
+            assert group_filter.endswith(')(objectClass=groupOfNames))')
+            
+            # Extract the CN value portion between 'cn=' and ')(objectClass='
+            cn_start = group_filter.find('cn=') + 3
+            cn_end = group_filter.find(')(objectClass=')
+            cn_value = group_filter[cn_start:cn_end]
+            
+            # Verify that dangerous unescaped characters are NOT in the CN value
+            # The only unescaped special chars should be the escaped hex codes (\\XX)
+            assert '*' not in cn_value or cn_value.count('*') == 0
+            assert cn_value.count('(') <= cn_value.count('\\28')  # All ( should be escaped
+            assert cn_value.count(')') <= cn_value.count('\\29')  # All ) should be escaped

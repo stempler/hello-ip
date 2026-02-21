@@ -267,19 +267,20 @@ When `LDAP_ALLOWED_GROUP` is configured, authentication is restricted to users w
 - **Full DN**: `cn=whitelist-users,ou=groups,dc=example,dc=com` → used as-is
 
 **How it works:**
-1. Before password authentication, the service account searches for the user
+1. The service account binds and searches for the user to obtain their DN
 2. The application then searches for the allowed group and checks if the user's DN is in the group's `member` attribute
 3. If the user is not in the group, authentication is denied immediately (fail-fast)
-4. If the user is in the group, password authentication proceeds as normal
+4. If the user is in the group, password authentication proceeds by verifying the user's password
 
-**Note:** Group membership is checked **before** password authentication for efficiency. Users not in the allowed group are rejected without attempting password verification.
+**Note:** Group membership is checked **after** finding the user's DN but **before** password verification. This provides efficient fail-fast behavior: users not in the allowed group are rejected without attempting password verification.
 
 ### Authentication Flow
 
 1. If `LDAP_ENABLED=true`:
-   - If `LDAP_ALLOWED_GROUP` is configured, check group membership first (requires service account)
+   - Service account binds and searches for the user's DN
+   - If `LDAP_ALLOWED_GROUP` is configured, check if the user is a member of the allowed group
    - If user is not in the allowed group, authentication fails immediately
-   - If user is in the allowed group (or no group restriction), proceed to password authentication
+   - If user is in the allowed group (or no group restriction), proceed to password verification by binding as the user
 2. If LDAP authentication fails and `LDAP_FALLBACK_LOCAL=true`, it tries local credentials
 3. If `LDAP_ENABLED=false`, only local credentials are used
 
