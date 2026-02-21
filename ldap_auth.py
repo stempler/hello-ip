@@ -3,6 +3,7 @@ import logging
 from typing import Optional
 from ldap3 import Server, Connection, ALL, SUBTREE, Tls
 from ldap3.core.exceptions import LDAPException, LDAPBindError
+from ldap3.utils.dn import parse_dn
 from config import Config
 
 logger = logging.getLogger(__name__)
@@ -21,11 +22,19 @@ def _get_allowed_group_dn() -> Optional[str]:
     if not group_value:
         return None
     
-    # If it already looks like a DN (contains '='), use it as-is
-    if '=' in group_value:
-        return group_value
+    # Check if it's already a valid DN using ldap3's DN parser
+    # A valid full DN should have multiple components (e.g., cn=group,ou=groups,dc=example,dc=com)
+    # Single-component values like "admin=users" are treated as group names
+    try:
+        parsed = parse_dn(group_value)
+        # If parsing succeeds and has multiple components, it's a valid DN - use it as-is
+        if len(parsed) >= 2:
+            return group_value
+    except Exception:
+        # If parsing fails, it's not a DN
+        pass
     
-    # Otherwise, construct DN from template
+    # Treat as a simple group name and construct DN from template
     return Config.LDAP_GROUP_DN_TEMPLATE.format(group_value, Config.LDAP_BASE_DN)
 
 
