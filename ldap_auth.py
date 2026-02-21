@@ -24,7 +24,7 @@ def _get_allowed_group_dn() -> Optional[str]:
     
     # Check if it's already a valid DN using ldap3's DN parser
     # A valid full DN should have multiple components (e.g., cn=group,ou=groups,dc=example,dc=com)
-    # Values that are not valid multi-component DNs (e.g., invalid formats like "admin=users") are treated as group names
+    # Single-component DNs (e.g., "admin=users") are treated as group names for this application
     try:
         parsed = parse_dn(group_value)
         # If parsing succeeds and has multiple components, it's a valid DN - use it as-is

@@ -441,8 +441,8 @@ class TestLdapGroupAccessControl:
             assert result is True
     
     def test_group_check_value_with_equals_treated_as_group_name(self, ldap_config):
-        """Test that values with '=' that aren't valid DNs (e.g., 'admin=users') are treated as group names."""
-        # Set a value that contains '=' but is not a valid multi-component DN
+        """Test that single-component DNs (e.g., 'admin=users') are treated as group names."""
+        # Set a value that is a valid single-component DN but should be treated as a group name
         os.environ['LDAP_ALLOWED_GROUP'] = 'admin=users'
         os.environ['LDAP_GROUP_DN_TEMPLATE'] = 'cn={},ou=groups,{}'
         reload_modules()
