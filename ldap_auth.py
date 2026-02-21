@@ -109,11 +109,12 @@ def verify_ldap_credential(username: str, password: str) -> bool:
                     group_cn = allowed_group_dn.split(',')[0].split('=')[1] if '=' in allowed_group_dn else allowed_group_dn
                     
                     # Search for group - filter by CN and objectClass to ensure we only get groups
-                    # LLDAP uses groupOfNames for groups. We require objectClass filter for security
-                    # to prevent matching non-group entries that might have the same CN.
+                    # We require objectClass filter for security to prevent matching non-group
+                    # entries that might have the same CN. The objectClass can be configured
+                    # via LDAP_GROUP_OBJECT_CLASS (default: groupOfNames).
                     bind_conn.search(
                         search_base=Config.LDAP_BASE_DN,
-                        search_filter=f"(&(cn={group_cn})(objectClass=groupOfNames))",
+                        search_filter=f"(&(cn={group_cn})(objectClass={Config.LDAP_GROUP_OBJECT_CLASS}))",
                         search_scope=SUBTREE,
                         attributes=['*']  # Request all attributes
                     )
@@ -147,8 +148,9 @@ def verify_ldap_credential(username: str, password: str) -> bool:
                         logger.debug(f"User '{username}' is a member of required group '{allowed_group_dn}'")
                     else:
                         logger.warning(
-                            f"Group '{allowed_group_dn}' (CN: {group_cn}) with objectClass=groupOfNames not found. "
-                            f"If using a different LDAP server, you may need to configure a different group objectClass."
+                            f"Group '{allowed_group_dn}' (CN: {group_cn}) with objectClass={Config.LDAP_GROUP_OBJECT_CLASS} not found. "
+                            f"If using a different LDAP server, configure LDAP_GROUP_OBJECT_CLASS appropriately "
+                            f"(e.g., 'group' for Active Directory, 'posixGroup' for POSIX groups)."
                         )
                         bind_conn.unbind()
                         return False
