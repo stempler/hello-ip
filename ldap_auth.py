@@ -160,13 +160,6 @@ def verify_ldap_credential(username: str, password: str) -> bool:
             bind_conn.unbind()
         else:
             # No service account - construct user DN from template
-            # This is only allowed if group checking is not enabled
-            if allowed_group_dn:
-                logger.error(
-                    "LDAP_ALLOWED_GROUP is configured but no service account "
-                    "is available. Cannot check group membership."
-                )
-                return False
             user_dn = Config.LDAP_USER_DN_TEMPLATE.format(username, Config.LDAP_BASE_DN)
             logger.debug(f"Using constructed user DN: {user_dn}")
         
