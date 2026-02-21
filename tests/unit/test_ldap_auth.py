@@ -299,14 +299,30 @@ class TestLdapGroupAccessControl:
             mock_server_instance = Mock()
             mock_server.return_value = mock_server_instance
             
-            # Mock entry with memberOf attribute (different group)
-            mock_entry = Mock(entry_dn='uid=testuser,ou=people,dc=example,dc=com')
-            mock_member_of = Mock()
-            mock_member_of.values = ['cn=other-group,ou=groups,dc=example,dc=com']
-            mock_entry.memberOf = mock_member_of
+            # Mock user entry
+            user_dn = 'uid=testuser,ou=people,dc=example,dc=com'
+            mock_user_entry = Mock(entry_dn=user_dn)
+            
+            # Mock group entry that does NOT contain the user DN in its member list
+            mock_group_entry = Mock()
+            mock_group_member = Mock()
+            mock_group_member.values = ['uid=otheruser,ou=people,dc=example,dc=com']
+            mock_group_entry.member = mock_group_member
             
             mock_bind_conn = Mock()
-            mock_bind_conn.entries = [mock_entry]
+            
+            # Simulate two searches on the same connection:
+            #  - first for the user, returning the user entry
+            #  - then for the group, returning a group entry without the user DN
+            def search_side_effect(*args, **kwargs):
+                search_filter = kwargs.get('search_filter') or (len(args) > 2 and args[2]) or ''
+                if 'uid=testuser' in str(search_filter):
+                    mock_bind_conn.entries = [mock_user_entry]
+                else:
+                    mock_bind_conn.entries = [mock_group_entry]
+                return True
+            
+            mock_bind_conn.search.side_effect = search_side_effect
             mock_connection.return_value = mock_bind_conn
             
             from ldap_auth import verify_ldap_credential
