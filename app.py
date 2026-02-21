@@ -82,6 +82,14 @@ def authenticate():
     if not credential_id or not password:
         return jsonify({'error': 'Missing credential_id or password'}), 400
     
+    # Security: Validate credential_id length and characters to prevent abuse
+    # Reasonable limit to prevent DoS and injection attempts
+    if len(credential_id) > 256:
+        return jsonify({'error': 'credential_id too long'}), 400
+    
+    if len(password) > 1024:  # Reasonable password length limit
+        return jsonify({'error': 'password too long'}), 400
+    
     # Verify credentials
     if not database.verify_credential(credential_id, password):
         return jsonify({'error': 'Invalid credentials'}), 403
@@ -145,7 +153,20 @@ def health():
 def static_files(filename):
     """Serve static files only under the configured base path."""
     import os
-    return send_from_directory(os.path.join(main_app.root_path, 'static'), filename)
+    # Security: Validate filename to prevent path traversal
+    # Flask's send_from_directory should handle this, but we add explicit validation
+    if '..' in filename or filename.startswith('/'):
+        return jsonify({'error': 'Invalid filename'}), 400
+    
+    static_dir = os.path.join(main_app.root_path, 'static')
+    # Ensure the requested file is within the static directory
+    requested_path = os.path.normpath(os.path.join(static_dir, filename))
+    static_dir_abs = os.path.abspath(static_dir)
+    requested_abs = os.path.abspath(requested_path)
+    if os.path.commonpath([requested_abs, static_dir_abs]) != static_dir_abs:
+        return jsonify({'error': 'Invalid filename'}), 400
+    
+    return send_from_directory(static_dir, filename)
 
 
 @internal_app.route('/whitelist.txt')
