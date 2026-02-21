@@ -251,14 +251,55 @@ Default values are configured to work with [LLDAP](https://github.com/lldap/llda
 | `LDAP_USER_FILTER` | `(&(objectClass=person)(uid={}))` | LDAP filter to find users (placeholder: username) |
 | `LDAP_USE_TLS` | `false` | Use STARTTLS for secure connection |
 | `LDAP_FALLBACK_LOCAL` | `true` | Fall back to local credentials if LDAP auth fails |
+| `LDAP_ALLOWED_GROUP` | (empty) | Optional group name or DN. If set, only users in this group can authenticate |
+| `LDAP_GROUP_DN_TEMPLATE` | `cn={},ou=groups,{}` | Template for constructing group DN from group name (placeholders: group_name, base_dn) |
+
+### Group-Based Access Control
+
+When `LDAP_ALLOWED_GROUP` is configured, authentication is restricted to users who are members of the specified LDAP group. This provides an additional layer of access control on top of password authentication.
+
+**Requirements:**
+- `LDAP_BIND_DN` and `LDAP_BIND_PASSWORD` must be configured (service account is required for group membership checks)
+- The group must exist in your LDAP directory
+
+**Group Format:**
+- **Group name (CN)**: `whitelist-users` → will construct DN as `cn=whitelist-users,ou=groups,{base_dn}` using `LDAP_GROUP_DN_TEMPLATE`
+- **Full DN**: `cn=whitelist-users,ou=groups,dc=example,dc=com` → used as-is
+
+**How it works:**
+1. Before password authentication, the service account searches for the user
+2. The application then searches for the allowed group and checks if the user's DN is in the group's `member` attribute
+3. If the user is not in the group, authentication is denied immediately (fail-fast)
+4. If the user is in the group, password authentication proceeds as normal
+
+**Note:** Group membership is checked **before** password authentication for efficiency. Users not in the allowed group are rejected without attempting password verification.
 
 ### Authentication Flow
 
-1. If `LDAP_ENABLED=true`, the application first attempts LDAP authentication
+1. If `LDAP_ENABLED=true`:
+   - If `LDAP_ALLOWED_GROUP` is configured, check group membership first (requires service account)
+   - If user is not in the allowed group, authentication fails immediately
+   - If user is in the allowed group (or no group restriction), proceed to password authentication
 2. If LDAP authentication fails and `LDAP_FALLBACK_LOCAL=true`, it tries local credentials
 3. If `LDAP_ENABLED=false`, only local credentials are used
 
-### Example: LLDAP Configuration
+### Example: LLDAP Configuration with Group Access Control
+
+```bash
+docker run -d \
+  -e LDAP_ENABLED=true \
+  -e LDAP_SERVER=ldap://lldap:3890 \
+  -e LDAP_BASE_DN=dc=example,dc=com \
+  -e LDAP_BIND_DN=uid=admin,ou=people,dc=example,dc=com \
+  -e LDAP_BIND_PASSWORD=admin_password \
+  -e LDAP_ALLOWED_GROUP=whitelist-users \
+  -e LDAP_GROUP_DN_TEMPLATE=cn={},ou=groups,{} \
+  ...
+```
+
+**Note:** When using `LDAP_ALLOWED_GROUP`, you must also configure `LDAP_BIND_DN` and `LDAP_BIND_PASSWORD` as the service account is required to check group membership.
+
+### Example: Basic LLDAP Configuration
 
 ```bash
 docker run -d \

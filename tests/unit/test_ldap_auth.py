@@ -43,6 +43,9 @@ class TestLdapAuthMocked:
     
     def test_ldap_valid_credentials(self, ldap_config):
         """Test LDAP authentication with valid credentials."""
+        # Ensure no group checking
+        if 'LDAP_ALLOWED_GROUP' in os.environ:
+            del os.environ['LDAP_ALLOWED_GROUP']
         reload_modules()
         
         with patch('ldap_auth.Server') as mock_server, \
@@ -173,6 +176,9 @@ class TestLdapFallback:
     
     def test_ldap_succeeds_no_local_check(self, temp_db, set_local_credentials, ldap_config):
         """When LDAP succeeds, should not check local credentials."""
+        # Ensure no group checking
+        if 'LDAP_ALLOWED_GROUP' in os.environ:
+            del os.environ['LDAP_ALLOWED_GROUP']
         reload_modules()
         
         with patch('ldap_auth.Server') as mock_server, \
@@ -208,6 +214,9 @@ class TestLdapWithoutBindCredentials:
         os.environ['LDAP_BIND_PASSWORD'] = ''
         os.environ['LDAP_USER_DN_TEMPLATE'] = 'uid={},ou=people,{}'
         os.environ['LDAP_USE_TLS'] = 'false'
+        # Ensure no group checking (requires service account)
+        if 'LDAP_ALLOWED_GROUP' in os.environ:
+            del os.environ['LDAP_ALLOWED_GROUP']
         
         reload_modules()
         
@@ -227,3 +236,232 @@ class TestLdapWithoutBindCredentials:
             # Should only make one connection (direct user bind)
             assert result is True
             assert mock_connection.call_count == 1
+
+
+class TestLdapGroupAccessControl:
+    """Tests for LDAP group-based access control."""
+    
+    def test_group_check_user_in_group(self, ldap_config):
+        """Test authentication succeeds when user is in allowed group."""
+        os.environ['LDAP_ALLOWED_GROUP'] = 'whitelist-users'
+        os.environ['LDAP_GROUP_DN_TEMPLATE'] = 'cn={},ou=groups,{}'
+        reload_modules()
+        
+        with patch('ldap_auth.Server') as mock_server, \
+             patch('ldap_auth.Connection') as mock_connection:
+            
+            mock_server_instance = Mock()
+            mock_server.return_value = mock_server_instance
+            
+            # Mock user entry with string entry_dn
+            mock_user_entry = Mock()
+            mock_user_entry.entry_dn = 'uid=testuser,ou=people,dc=example,dc=com'
+            
+            # Mock group entry with member attribute
+            mock_group_entry = Mock()
+            mock_member = Mock()
+            mock_member.values = ['uid=testuser,ou=people,dc=example,dc=com']
+            mock_group_entry.member = mock_member
+            
+            mock_bind_conn = Mock()
+            # Set initial entries to user
+            mock_bind_conn.entries = [mock_user_entry]
+            
+            # Make search update entries on second call (group search)
+            search_call_count = [0]
+            def search_side_effect(*args, **kwargs):
+                search_call_count[0] += 1
+                if search_call_count[0] > 1:  # Second search is for group
+                    mock_bind_conn.entries = [mock_group_entry]
+            
+            mock_bind_conn.search = Mock(side_effect=search_side_effect)
+            
+            mock_user_conn = Mock()
+            mock_connection.side_effect = [mock_bind_conn, mock_user_conn]
+            
+            from ldap_auth import verify_ldap_credential
+            
+            result = verify_ldap_credential('testuser', 'valid_password')
+            
+            assert result is True
+            # Should search twice: once for user, once for group
+            assert mock_bind_conn.search.call_count >= 1
+    
+    def test_group_check_user_not_in_group(self, ldap_config):
+        """Test authentication fails when user is not in allowed group."""
+        os.environ['LDAP_ALLOWED_GROUP'] = 'whitelist-users'
+        os.environ['LDAP_GROUP_DN_TEMPLATE'] = 'cn={},ou=groups,{}'
+        reload_modules()
+        
+        with patch('ldap_auth.Server') as mock_server, \
+             patch('ldap_auth.Connection') as mock_connection:
+            
+            mock_server_instance = Mock()
+            mock_server.return_value = mock_server_instance
+            
+            # Mock entry with memberOf attribute (different group)
+            mock_entry = Mock(entry_dn='uid=testuser,ou=people,dc=example,dc=com')
+            mock_member_of = Mock()
+            mock_member_of.values = ['cn=other-group,ou=groups,dc=example,dc=com']
+            mock_entry.memberOf = mock_member_of
+            
+            mock_bind_conn = Mock()
+            mock_bind_conn.entries = [mock_entry]
+            mock_connection.return_value = mock_bind_conn
+            
+            from ldap_auth import verify_ldap_credential
+            
+            result = verify_ldap_credential('testuser', 'valid_password')
+            
+            assert result is False
+            # Should not proceed to password authentication
+            assert mock_connection.call_count == 1
+    
+    def test_group_check_no_group_configured(self, ldap_config):
+        """Test authentication works normally when no group is configured."""
+        # Ensure LDAP_ALLOWED_GROUP is not set
+        if 'LDAP_ALLOWED_GROUP' in os.environ:
+            del os.environ['LDAP_ALLOWED_GROUP']
+        reload_modules()
+        
+        with patch('ldap_auth.Server') as mock_server, \
+             patch('ldap_auth.Connection') as mock_connection:
+            
+            mock_server_instance = Mock()
+            mock_server.return_value = mock_server_instance
+            
+            mock_bind_conn = Mock()
+            mock_bind_conn.entries = [Mock(entry_dn='uid=testuser,ou=people,dc=example,dc=com')]
+            mock_user_conn = Mock()
+            mock_connection.side_effect = [mock_bind_conn, mock_user_conn]
+            
+            from ldap_auth import verify_ldap_credential
+            
+            result = verify_ldap_credential('testuser', 'valid_password')
+            
+            assert result is True
+            # Should not request memberOf attribute
+            mock_bind_conn.search.assert_called_once()
+            call_kwargs = mock_bind_conn.search.call_args[1]
+            assert 'memberOf' not in call_kwargs.get('attributes', [])
+    
+    def test_group_check_missing_bind_dn(self):
+        """Test group check fails when LDAP_BIND_DN is missing."""
+        os.environ['LDAP_ENABLED'] = 'true'
+        os.environ['LDAP_SERVER'] = 'ldap://localhost:3890'
+        os.environ['LDAP_BASE_DN'] = 'dc=example,dc=com'
+        os.environ['LDAP_BIND_DN'] = ''
+        os.environ['LDAP_BIND_PASSWORD'] = ''
+        os.environ['LDAP_ALLOWED_GROUP'] = 'whitelist-users'
+        reload_modules()
+        
+        from ldap_auth import verify_ldap_credential
+        
+        result = verify_ldap_credential('testuser', 'password')
+        
+        assert result is False
+    
+    def test_group_check_full_dn_format(self, ldap_config):
+        """Test group check works with full DN format."""
+        os.environ['LDAP_ALLOWED_GROUP'] = 'cn=whitelist-users,ou=groups,dc=example,dc=com'
+        reload_modules()
+        
+        with patch('ldap_auth.Server') as mock_server, \
+             patch('ldap_auth.Connection') as mock_connection:
+            
+            mock_server_instance = Mock()
+            mock_server.return_value = mock_server_instance
+            
+            # Mock user entry with string entry_dn
+            mock_user_entry = Mock()
+            mock_user_entry.entry_dn = 'uid=testuser,ou=people,dc=example,dc=com'
+            
+            # Mock group entry with member attribute
+            mock_group_entry = Mock()
+            mock_member = Mock()
+            mock_member.values = ['uid=testuser,ou=people,dc=example,dc=com']
+            mock_group_entry.member = mock_member
+            
+            mock_bind_conn = Mock()
+            mock_bind_conn.entries = [mock_user_entry]
+            search_call_count = [0]
+            def search_side_effect(*args, **kwargs):
+                search_call_count[0] += 1
+                if search_call_count[0] > 1:  # Second search is for group
+                    mock_bind_conn.entries = [mock_group_entry]
+            mock_bind_conn.search = Mock(side_effect=search_side_effect)
+            
+            mock_user_conn = Mock()
+            mock_connection.side_effect = [mock_bind_conn, mock_user_conn]
+            
+            from ldap_auth import verify_ldap_credential
+            
+            result = verify_ldap_credential('testuser', 'valid_password')
+            
+            assert result is True
+    
+    def test_group_check_case_insensitive(self, ldap_config):
+        """Test group check is case-insensitive."""
+        os.environ['LDAP_ALLOWED_GROUP'] = 'whitelist-users'
+        os.environ['LDAP_GROUP_DN_TEMPLATE'] = 'cn={},ou=groups,{}'
+        reload_modules()
+        
+        with patch('ldap_auth.Server') as mock_server, \
+             patch('ldap_auth.Connection') as mock_connection:
+            
+            mock_server_instance = Mock()
+            mock_server.return_value = mock_server_instance
+            
+            # Mock user entry with string entry_dn (different case)
+            mock_user_entry = Mock()
+            mock_user_entry.entry_dn = 'UID=TestUser,OU=People,DC=example,DC=com'
+            
+            # Mock group entry with member attribute (case-insensitive matching)
+            mock_group_entry = Mock()
+            mock_member = Mock()
+            mock_member.values = ['uid=testuser,ou=people,dc=example,dc=com']  # Different case in DN
+            mock_group_entry.member = mock_member
+            
+            mock_bind_conn = Mock()
+            mock_bind_conn.entries = [mock_user_entry]
+            search_call_count = [0]
+            def search_side_effect(*args, **kwargs):
+                search_call_count[0] += 1
+                if search_call_count[0] > 1:  # Second search is for group
+                    mock_bind_conn.entries = [mock_group_entry]
+            mock_bind_conn.search = Mock(side_effect=search_side_effect)
+            
+            mock_user_conn = Mock()
+            mock_connection.side_effect = [mock_bind_conn, mock_user_conn]
+            
+            from ldap_auth import verify_ldap_credential
+            
+            result = verify_ldap_credential('testuser', 'valid_password')
+            
+            assert result is True
+    
+    def test_group_check_empty_memberof(self, ldap_config):
+        """Test authentication fails when user has no groups."""
+        os.environ['LDAP_ALLOWED_GROUP'] = 'whitelist-users'
+        os.environ['LDAP_GROUP_DN_TEMPLATE'] = 'cn={},ou=groups,{}'
+        reload_modules()
+        
+        with patch('ldap_auth.Server') as mock_server, \
+             patch('ldap_auth.Connection') as mock_connection:
+            
+            mock_server_instance = Mock()
+            mock_server.return_value = mock_server_instance
+            
+            # Entry without memberOf attribute
+            mock_entry = Mock(entry_dn='uid=testuser,ou=people,dc=example,dc=com')
+            mock_entry.memberOf = None
+            
+            mock_bind_conn = Mock()
+            mock_bind_conn.entries = [mock_entry]
+            mock_connection.return_value = mock_bind_conn
+            
+            from ldap_auth import verify_ldap_credential
+            
+            result = verify_ldap_credential('testuser', 'valid_password')
+            
+            assert result is False

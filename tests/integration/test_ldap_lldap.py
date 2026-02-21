@@ -200,6 +200,192 @@ class LLDAPContainer:
         except Exception as e:
             print(f"Could not set password via lldap_set_password: {e}")
             return False
+    
+    def create_test_group(self, group_name):
+        """Create a test group in LLDAP via the GraphQL API.
+        
+        Returns True if group was created successfully, False otherwise.
+        """
+        import requests
+        
+        # Login to get JWT token
+        login_url = f"http://localhost:{self.web_port}/auth/simple/login"
+        login_data = {
+            "username": "admin",
+            "password": self.admin_password,
+        }
+        
+        try:
+            response = requests.post(login_url, json=login_data, timeout=10)
+            response.raise_for_status()
+            token = response.json().get("token")
+        except Exception as e:
+            print(f"Could not authenticate with LLDAP admin: {e}")
+            return False
+        
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+        
+        # Create group via GraphQL
+        graphql_url = f"http://localhost:{self.web_port}/api/graphql"
+        
+        create_group_query = """
+        mutation CreateGroup($name: String!) {
+            createGroup(name: $name) {
+                id
+                displayName
+            }
+        }
+        """
+        
+        variables = {
+            "name": group_name,
+        }
+        
+        try:
+            response = requests.post(
+                graphql_url,
+                json={"query": create_group_query, "variables": variables},
+                headers=headers,
+                timeout=10,
+            )
+            response.raise_for_status()
+            result = response.json()
+            if "errors" in result:
+                error_msg = str(result['errors'])
+                print(f"GraphQL error creating group: {error_msg}")
+                return False
+            return True
+        except Exception as e:
+            error_detail = str(e)
+            if hasattr(e, 'response') and e.response is not None:
+                try:
+                    error_detail += f" - Response: {e.response.text[:200]}"
+                except:
+                    pass
+            print(f"Could not create test group: {error_detail}")
+            return False
+    
+    def add_user_to_group(self, username, group_name):
+        """Add a user to a group in LLDAP via the GraphQL API.
+        
+        Returns True if user was added successfully, False otherwise.
+        """
+        import requests
+        
+        # Login to get JWT token
+        login_url = f"http://localhost:{self.web_port}/auth/simple/login"
+        login_data = {
+            "username": "admin",
+            "password": self.admin_password,
+        }
+        
+        try:
+            response = requests.post(login_url, json=login_data, timeout=10)
+            response.raise_for_status()
+            token = response.json().get("token")
+        except Exception as e:
+            print(f"Could not authenticate with LLDAP admin: {e}")
+            return False
+        
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+        
+        graphql_url = f"http://localhost:{self.web_port}/api/graphql"
+        
+        # First, get the group ID by searching for the group
+        get_group_query = """
+        query GetGroup($id: String!) {
+            group(groupId: $id) {
+                id
+            }
+        }
+        """
+        
+        try:
+            # Try to get group by ID (which is the name in LLDAP)
+            response = requests.post(
+                graphql_url,
+                json={"query": get_group_query, "variables": {"id": group_name}},
+                headers=headers,
+                timeout=10,
+            )
+            result = response.json()
+            
+            if "errors" in result or "data" not in result or not result["data"].get("group"):
+                # Try listing all groups and finding by name
+                list_groups_query = """
+                query {
+                    groups {
+                        id
+                        displayName
+                    }
+                }
+                """
+                response = requests.post(
+                    graphql_url,
+                    json={"query": list_groups_query},
+                    headers=headers,
+                    timeout=10,
+                )
+                result = response.json()
+                groups = result.get("data", {}).get("groups", [])
+                group_id = None
+                for group in groups:
+                    if group.get("id") == group_name or group.get("displayName") == group_name:
+                        group_id = group.get("id")
+                        break
+                
+                if not group_id:
+                    print(f"Group '{group_name}' not found")
+                    return False
+            else:
+                group_id = result["data"]["group"]["id"]
+        except Exception as e:
+            print(f"Could not find group: {e}")
+            return False
+        
+        # Add user to group via GraphQL (using group ID)
+        add_user_query = """
+        mutation AddUserToGroup($userId: String!, $groupId: Int!) {
+            addUserToGroup(userId: $userId, groupId: $groupId) {
+                ok
+            }
+        }
+        """
+        
+        variables = {
+            "userId": username,
+            "groupId": int(group_id) if isinstance(group_id, str) and group_id.isdigit() else group_id,
+        }
+        
+        try:
+            response = requests.post(
+                graphql_url,
+                json={"query": add_user_query, "variables": variables},
+                headers=headers,
+                timeout=10,
+            )
+            response.raise_for_status()
+            result = response.json()
+            if "errors" in result:
+                error_msg = str(result['errors'])
+                print(f"GraphQL error adding user to group: {error_msg}")
+                return False
+            return True
+        except Exception as e:
+            error_detail = str(e)
+            if hasattr(e, 'response') and e.response is not None:
+                try:
+                    error_detail += f" - Response: {e.response.text[:200]}"
+                except:
+                    pass
+            print(f"Could not add user to group: {error_detail}")
+            return False
 
 
 @pytest.fixture(scope="module")
@@ -396,5 +582,119 @@ class TestLLDAPIntegration:
         
         # Wrong password should fail
         result = database.verify_credential(test_username, "badpassword")
+        assert result is False
+    
+    def test_group_access_control_user_in_group(self, lldap_container, ldap_env, temp_db):
+        """Test authentication succeeds when user is in allowed group."""
+        reload_modules()
+        
+        # Create a test group
+        group_name = "whitelist-users"
+        group_created = lldap_container.create_test_group(group_name)
+        if not group_created:
+            pytest.skip("Could not create test group in LLDAP")
+        
+        # Create a test user
+        test_username = "groupuser"
+        test_password = "grouppass123"
+        user_created = lldap_container.create_test_user(test_username, test_password)
+        if not user_created:
+            pytest.skip("Could not create test user in LLDAP")
+        
+        # Add user to group
+        added = lldap_container.add_user_to_group(test_username, group_name)
+        if not added:
+            pytest.skip("Could not add user to group in LLDAP")
+        
+        # Give LLDAP a moment to update group membership (LDAP can be eventually consistent)
+        import time
+        time.sleep(2)
+        
+        # Configure group-based access control
+        os.environ['LDAP_ALLOWED_GROUP'] = group_name
+        os.environ['LDAP_GROUP_DN_TEMPLATE'] = 'cn={},ou=groups,{}'
+        reload_modules()
+        
+        from ldap_auth import verify_ldap_credential
+        
+        # Should succeed - user is in allowed group
+        result = verify_ldap_credential(test_username, test_password)
+        assert result is True
+    
+    def test_group_access_control_user_not_in_group(self, lldap_container, ldap_env, temp_db):
+        """Test authentication fails when user is not in allowed group."""
+        reload_modules()
+        
+        # Create a test group
+        group_name = "whitelist-users"
+        group_created = lldap_container.create_test_group(group_name)
+        if not group_created:
+            pytest.skip("Could not create test group in LLDAP")
+        
+        # Create a test user (but don't add to group)
+        test_username = "nonmember"
+        test_password = "nonmemberpass123"
+        user_created = lldap_container.create_test_user(test_username, test_password)
+        if not user_created:
+            pytest.skip("Could not create test user in LLDAP")
+        
+        # Configure group-based access control
+        os.environ['LDAP_ALLOWED_GROUP'] = group_name
+        os.environ['LDAP_GROUP_DN_TEMPLATE'] = 'cn={},ou=groups,{}'
+        reload_modules()
+        
+        from ldap_auth import verify_ldap_credential
+        
+        # Should fail - user is not in allowed group
+        result = verify_ldap_credential(test_username, test_password)
+        assert result is False
+    
+    def test_group_access_control_full_dn_format(self, lldap_container, ldap_env, temp_db):
+        """Test group access control with full DN format."""
+        reload_modules()
+        
+        # Create a test group
+        group_name = "whitelist-users"
+        group_created = lldap_container.create_test_group(group_name)
+        if not group_created:
+            pytest.skip("Could not create test group in LLDAP")
+        
+        # Create a test user
+        test_username = "fulldnuser"
+        test_password = "fulldnpass123"
+        user_created = lldap_container.create_test_user(test_username, test_password)
+        if not user_created:
+            pytest.skip("Could not create test user in LLDAP")
+        
+        # Add user to group
+        added = lldap_container.add_user_to_group(test_username, group_name)
+        if not added:
+            pytest.skip("Could not add user to group in LLDAP")
+        
+        # Configure group-based access control with full DN
+        full_group_dn = f"cn={group_name},ou=groups,{lldap_container.base_dn}"
+        os.environ['LDAP_ALLOWED_GROUP'] = full_group_dn
+        reload_modules()
+        
+        from ldap_auth import verify_ldap_credential
+        
+        # Should succeed - user is in allowed group
+        result = verify_ldap_credential(test_username, test_password)
+        assert result is True
+    
+    def test_group_access_control_missing_bind_dn(self, lldap_container, ldap_env, temp_db):
+        """Test group access control fails when service account is missing."""
+        reload_modules()
+        
+        # Configure group-based access control but no service account
+        os.environ['LDAP_ALLOWED_GROUP'] = 'whitelist-users'
+        os.environ['LDAP_BIND_DN'] = ''
+        os.environ['LDAP_BIND_PASSWORD'] = ''
+        reload_modules()
+        
+        from ldap_auth import verify_ldap_credential
+        
+        # Should fail - service account required for group checking
+        result = verify_ldap_credential("admin", lldap_container.admin_password)
         assert result is False
 

@@ -24,6 +24,8 @@ class Config:
     LDAP_USER_FILTER: str = os.getenv('LDAP_USER_FILTER', '(&(objectClass=person)(uid={}))')
     LDAP_USE_TLS: bool = os.getenv('LDAP_USE_TLS', 'false').lower() == 'true'
     LDAP_FALLBACK_LOCAL: bool = os.getenv('LDAP_FALLBACK_LOCAL', 'true').lower() == 'true'
+    LDAP_ALLOWED_GROUP: str = os.getenv('LDAP_ALLOWED_GROUP', '')
+    LDAP_GROUP_DN_TEMPLATE: str = os.getenv('LDAP_GROUP_DN_TEMPLATE', 'cn={},ou=groups,{}')
     
     # BunkerWeb API integration
     BUNKERWEB_ENABLED: bool = os.getenv('BUNKERWEB_ENABLED', 'false').lower() == 'true'
