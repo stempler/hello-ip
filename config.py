@@ -26,6 +26,7 @@ class Config:
     LDAP_FALLBACK_LOCAL: bool = os.getenv('LDAP_FALLBACK_LOCAL', 'true').lower() == 'true'
     LDAP_ALLOWED_GROUP: str = os.getenv('LDAP_ALLOWED_GROUP', '')
     LDAP_GROUP_DN_TEMPLATE: str = os.getenv('LDAP_GROUP_DN_TEMPLATE', 'cn={},ou=groups,{}')
+    LDAP_GROUP_OBJECT_CLASS: str = os.getenv('LDAP_GROUP_OBJECT_CLASS', 'groupOfNames')
     
     # BunkerWeb API integration
     BUNKERWEB_ENABLED: bool = os.getenv('BUNKERWEB_ENABLED', 'false').lower() == 'true'
