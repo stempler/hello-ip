@@ -34,7 +34,6 @@ def _get_allowed_group_dn() -> Optional[str]:
     except LDAPInvalidDnError:
         # If parsing fails, it's not a DN
         logger.debug(f"Value is not a valid DN, treating as group name: {group_value}")
-        pass
     
     # Treat as a simple group name and construct DN from template
     return Config.LDAP_GROUP_DN_TEMPLATE.format(group_value, Config.LDAP_BASE_DN)
