@@ -3,6 +3,7 @@ import logging
 from typing import Optional
 from ldap3 import Server, Connection, ALL, SUBTREE, Tls
 from ldap3.core.exceptions import LDAPException, LDAPBindError
+from ldap3.utils.dn import safe_dn
 from config import Config
 
 logger = logging.getLogger(__name__)
@@ -131,9 +132,10 @@ def verify_ldap_credential(username: str, password: str) -> bool:
                             else:
                                 member_list = [entry.member]
                             
-                            # Normalize DNs for comparison (remove extra spaces, case-insensitive)
-                            normalized_user_dn = user_dn.lower().strip()
-                            normalized_members = [str(m).lower().strip() for m in member_list]
+                            # Normalize DNs for comparison using RFC 4514 compliant normalization
+                            # safe_dn() handles escaped characters, whitespace, and attribute type equivalence
+                            normalized_user_dn = safe_dn(user_dn).lower()
+                            normalized_members = [safe_dn(str(m)).lower() for m in member_list]
                             user_in_group = normalized_user_dn in normalized_members
                             logger.debug(f"Group member list: {normalized_members}, User DN: {normalized_user_dn}, Match: {user_in_group}")
                         
