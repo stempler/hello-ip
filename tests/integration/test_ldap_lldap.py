@@ -263,7 +263,7 @@ class LLDAPContainer:
             if hasattr(e, 'response') and e.response is not None:
                 try:
                     error_detail += f" - Response: {e.response.text[:200]}"
-                except:
+                except Exception:
                     pass
             print(f"Could not create test group: {error_detail}")
             return False
