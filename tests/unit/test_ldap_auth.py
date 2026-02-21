@@ -468,8 +468,8 @@ class TestLdapGroupAccessControl:
     
     def test_group_cn_sanitization(self, ldap_config):
         """Test that group CN values are sanitized to prevent LDAP injection."""
-        # Use a group name with special LDAP filter characters
-        os.environ['LDAP_ALLOWED_GROUP'] = 'cn=group*)(%26(uid=*,ou=groups,dc=example,dc=com'
+        # Use a simpler malicious input that clearly demonstrates injection attempt
+        os.environ['LDAP_ALLOWED_GROUP'] = 'cn=admin*)(uid=*,ou=groups,dc=example,dc=com'
         reload_modules()
         
         with patch('ldap_auth.Server') as mock_server, \
@@ -507,10 +507,24 @@ class TestLdapGroupAccessControl:
             # Verify that the group search filter was properly escaped
             assert len(captured_filters) >= 2
             group_filter = captured_filters[1]  # Second search is for group
-            # The escaped filter should contain escaped special chars
-            # * should become \\2a, ( should become \\28, ) should become \\29, & should become \\26
-            assert '\\2a' in group_filter or '\\28' in group_filter or '\\29' in group_filter or '\\26' in group_filter
-            # The filter should NOT contain unescaped special characters from the input
-            # (except the ones we intentionally put in the filter structure)
+            
+            # Verify all special characters are escaped
+            # * should become \\2a, ( should become \\28, ) should become \\29
+            assert '\\2a' in group_filter  # * is escaped
+            assert '\\28' in group_filter  # ( is escaped
+            assert '\\29' in group_filter  # ) is escaped
+            
+            # Verify the filter structure is correct
             assert group_filter.startswith('(&(cn=')
             assert group_filter.endswith(')(objectClass=groupOfNames))')
+            
+            # Extract the CN value portion between 'cn=' and ')(objectClass='
+            cn_start = group_filter.find('cn=') + 3
+            cn_end = group_filter.find(')(objectClass=')
+            cn_value = group_filter[cn_start:cn_end]
+            
+            # Verify that dangerous unescaped characters are NOT in the CN value
+            # The only unescaped special chars should be the escaped hex codes (\\XX)
+            assert '*' not in cn_value or cn_value.count('*') == 0
+            assert cn_value.count('(') <= cn_value.count('\\28')  # All ( should be escaped
+            assert cn_value.count(')') <= cn_value.count('\\29')  # All ) should be escaped
