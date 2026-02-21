@@ -606,10 +606,6 @@ class TestLLDAPIntegration:
         if not added:
             pytest.skip("Could not add user to group in LLDAP")
         
-        # Give LLDAP a moment to update group membership (LDAP can be eventually consistent)
-        import time
-        time.sleep(2)
-        
         # Configure group-based access control
         os.environ['LDAP_ALLOWED_GROUP'] = group_name
         os.environ['LDAP_GROUP_DN_TEMPLATE'] = 'cn={},ou=groups,{}'
@@ -618,6 +614,7 @@ class TestLLDAPIntegration:
         from ldap_auth import verify_ldap_credential
         
         # Should succeed - user is in allowed group
+        # LLDAP makes group membership changes immediately available via LDAP queries
         result = verify_ldap_credential(test_username, test_password)
         assert result is True
     
