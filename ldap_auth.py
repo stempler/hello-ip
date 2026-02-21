@@ -3,6 +3,7 @@ import logging
 from typing import Optional
 from ldap3 import Server, Connection, ALL, SUBTREE, Tls
 from ldap3.core.exceptions import LDAPException, LDAPBindError
+from ldap3.utils.conv import escape_filter_chars
 from config import Config
 
 logger = logging.getLogger(__name__)
@@ -107,13 +108,15 @@ def verify_ldap_credential(username: str, password: str) -> bool:
                     # LLDAP may not support memberOf, so search the group's member attribute
                     # Try searching by CN first (more reliable in LLDAP)
                     group_cn = allowed_group_dn.split(',')[0].split('=')[1] if '=' in allowed_group_dn else allowed_group_dn
+                    # Sanitize group_cn to prevent LDAP injection
+                    group_cn_escaped = escape_filter_chars(group_cn)
                     
                     # Search for group - filter by CN and objectClass to ensure we only get groups
                     # LLDAP uses groupOfNames for groups. We require objectClass filter for security
                     # to prevent matching non-group entries that might have the same CN.
                     bind_conn.search(
                         search_base=Config.LDAP_BASE_DN,
-                        search_filter=f"(&(cn={group_cn})(objectClass=groupOfNames))",
+                        search_filter=f"(&(cn={group_cn_escaped})(objectClass=groupOfNames))",
                         search_scope=SUBTREE,
                         attributes=['*']  # Request all attributes
                     )
