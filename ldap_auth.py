@@ -137,26 +137,6 @@ def verify_ldap_credential(username: str, password: str) -> bool:
                             user_in_group = normalized_user_dn in normalized_members
                             logger.debug(f"Group member list: {normalized_members}, User DN: {normalized_user_dn}, Match: {user_in_group}")
                         
-                        # Also check if username matches (some LDAP implementations store usernames)
-                        if not user_in_group:
-                            # Check all string attributes for the username
-                            for attr_name in dir(entry):
-                                if not attr_name.startswith('_') and attr_name not in ['entry_dn', 'entry_get_attribute']:
-                                    try:
-                                        attr_value = getattr(entry, attr_name, None)
-                                        if attr_value and isinstance(attr_value, (str, list)):
-                                            if isinstance(attr_value, list):
-                                                if username in [str(v) for v in attr_value]:
-                                                    user_in_group = True
-                                                    logger.debug(f"Found username in attribute {attr_name}: {attr_value}")
-                                                    break
-                                            elif username in str(attr_value):
-                                                user_in_group = True
-                                                logger.debug(f"Found username in attribute {attr_name}: {attr_value}")
-                                                break
-                                    except:
-                                        pass
-                        
                         if not user_in_group:
                             logger.warning(
                                 f"User '{username}' (DN: {user_dn}) is not a member of required group "
