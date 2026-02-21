@@ -455,7 +455,6 @@ class TestLdapGroupAccessControl:
         # Expected: cn=admin=users,ou=groups,dc=example,dc=com
         # (The group name 'admin=users' is inserted into the template)
         assert result == 'cn=admin=users,ou=groups,dc=example,dc=com'
-        assert result != 'admin=users'  # Should NOT use the invalid format as-is
     
     def test_group_check_empty_memberof(self, ldap_config):
         """Test authentication fails when user has no groups."""

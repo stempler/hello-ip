@@ -28,6 +28,7 @@ def _get_allowed_group_dn() -> Optional[str]:
     try:
         parsed = parse_dn(group_value)
         # If parsing succeeds and has multiple components, it's a valid DN - use it as-is
+        # We require at least 2 components to distinguish full DNs from simple attribute=value pairs
         if len(parsed) >= 2:
             return group_value
     except LDAPInvalidDnError:
