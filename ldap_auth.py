@@ -3,7 +3,7 @@ import logging
 from typing import Optional
 from ldap3 import Server, Connection, ALL, SUBTREE, Tls
 from ldap3.core.exceptions import LDAPException, LDAPBindError
-from ldap3.utils.dn import safe_dn, parse_dn, LDAPInvalidDnError
+from ldap3.utils.dn import safe_dn, parse_dn, LDAPInvalidDnError, escape_rdn
 from ldap3.utils.conv import escape_filter_chars
 from config import Config
 
@@ -101,7 +101,9 @@ def verify_ldap_credential(username: str, password: str) -> bool:
                 bind_conn.start_tls()
             
             # Search for the user
-            search_filter = Config.LDAP_USER_FILTER.format(username)
+            # CRITICAL: Escape username to prevent LDAP injection
+            username_escaped = escape_filter_chars(username)
+            search_filter = Config.LDAP_USER_FILTER.format(username_escaped)
             bind_conn.search(
                 search_base=Config.LDAP_BASE_DN,
                 search_filter=search_filter,
@@ -176,7 +178,14 @@ def verify_ldap_credential(username: str, password: str) -> bool:
             bind_conn.unbind()
         else:
             # No service account - construct user DN from template
-            user_dn = Config.LDAP_USER_DN_TEMPLATE.format(username, Config.LDAP_BASE_DN)
+            # CRITICAL: Escape username to prevent DN injection
+            # escape_rdn properly escapes RDN values according to RFC 4514
+            username_escaped = escape_rdn(username)
+            
+            # Construct the RDN with escaped username, then append base DN
+            # The template format is: uid={},ou=people,{}
+            # We need to escape just the username value part
+            user_dn = Config.LDAP_USER_DN_TEMPLATE.format(username_escaped, Config.LDAP_BASE_DN)
             logger.debug(f"Using constructed user DN: {user_dn}")
         
         # Group membership check was already performed above if group checking was enabled
