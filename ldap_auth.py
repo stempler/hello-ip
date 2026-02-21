@@ -112,11 +112,12 @@ def verify_ldap_credential(username: str, password: str) -> bool:
                     group_cn_escaped = escape_filter_chars(group_cn)
                     
                     # Search for group - filter by CN and objectClass to ensure we only get groups
-                    # LLDAP uses groupOfNames for groups. We require objectClass filter for security
-                    # to prevent matching non-group entries that might have the same CN.
+                    # We require objectClass filter for security to prevent matching non-group
+                    # entries that might have the same CN. The objectClass can be configured
+                    # via LDAP_GROUP_OBJECT_CLASS (default: groupOfNames).
                     bind_conn.search(
                         search_base=Config.LDAP_BASE_DN,
-                        search_filter=f"(&(cn={group_cn_escaped})(objectClass=groupOfNames))",
+                        search_filter=f"(&(cn={group_cn_escaped})(objectClass={Config.LDAP_GROUP_OBJECT_CLASS}))",
                         search_scope=SUBTREE,
                         attributes=['*']  # Request all attributes
                     )
@@ -150,8 +151,9 @@ def verify_ldap_credential(username: str, password: str) -> bool:
                         logger.debug(f"User '{username}' is a member of required group '{allowed_group_dn}'")
                     else:
                         logger.warning(
-                            f"Group '{allowed_group_dn}' (CN: {group_cn}) with objectClass=groupOfNames not found. "
-                            f"If using a different LDAP server, you may need to configure a different group objectClass."
+                            f"Group '{allowed_group_dn}' (CN: {group_cn}) with objectClass={Config.LDAP_GROUP_OBJECT_CLASS} not found. "
+                            f"If using a different LDAP server, configure LDAP_GROUP_OBJECT_CLASS appropriately "
+                            f"(e.g., 'group' for Active Directory, 'posixGroup' for POSIX groups)."
                         )
                         bind_conn.unbind()
                         return False
