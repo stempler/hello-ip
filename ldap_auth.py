@@ -3,7 +3,7 @@ import logging
 from typing import Optional
 from ldap3 import Server, Connection, ALL, SUBTREE, Tls
 from ldap3.core.exceptions import LDAPException, LDAPBindError
-from ldap3.utils.dn import parse_dn
+from ldap3.utils.dn import parse_dn, LDAPInvalidDnError
 from config import Config
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ def _get_allowed_group_dn() -> Optional[str]:
         # If parsing succeeds and has multiple components, it's a valid DN - use it as-is
         if len(parsed) >= 2:
             return group_value
-    except Exception:
+    except LDAPInvalidDnError:
         # If parsing fails, it's not a DN
         pass
     
