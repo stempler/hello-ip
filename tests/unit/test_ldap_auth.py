@@ -535,6 +535,47 @@ class TestLdapGroupAccessControl:
             
             # Authentication should fail because group not found
             assert result is False
+    
+    def test_group_check_group_with_empty_member(self, ldap_config):
+        """Test authentication fails when group exists but has no members."""
+        os.environ['LDAP_ALLOWED_GROUP'] = 'whitelist-users'
+        os.environ['LDAP_GROUP_DN_TEMPLATE'] = 'cn={},ou=groups,{}'
+        reload_modules()
+        
+        with patch('ldap_auth.Server') as mock_server, \
+             patch('ldap_auth.Connection') as mock_connection:
+            
+            mock_server_instance = Mock()
+            mock_server.return_value = mock_server_instance
+            
+            # Mock user entry returned by initial bind search
+            mock_user_entry = Mock()
+            mock_user_entry.entry_dn = 'uid=testuser,ou=people,dc=example,dc=com'
+            
+            # Mock group entry where 'member' attribute exists but is falsy (None)
+            mock_group_entry = Mock()
+            mock_group_entry.member = None
+            
+            mock_bind_conn = Mock()
+            mock_bind_conn.entries = [mock_user_entry]
+            search_call_count = [0]
+            
+            def search_side_effect(*args, **kwargs):
+                search_call_count[0] += 1
+                # Second search is for the allowed group
+                if search_call_count[0] > 1:
+                    mock_bind_conn.entries = [mock_group_entry]
+            
+            mock_bind_conn.search = Mock(side_effect=search_side_effect)
+            
+            mock_user_conn = Mock()
+            mock_connection.side_effect = [mock_bind_conn, mock_user_conn]
+            
+            from ldap_auth import verify_ldap_credential
+            
+            result = verify_ldap_credential('testuser', 'valid_password')
+            
+            assert result is False
             
             # Verify that the group search filter was properly escaped
             assert len(captured_filters) >= 2
