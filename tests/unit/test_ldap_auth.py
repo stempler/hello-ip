@@ -440,6 +440,24 @@ class TestLdapGroupAccessControl:
             
             assert result is True
     
+    def test_group_check_value_with_equals_treated_as_group_name(self, ldap_config):
+        """Test that single-component DNs (e.g., 'admin=users') are treated as group names."""
+        # Set a value that is a valid single-component DN but should be treated as a group name
+        os.environ['LDAP_ALLOWED_GROUP'] = 'admin=users'
+        os.environ['LDAP_GROUP_DN_TEMPLATE'] = 'cn={},ou=groups,{}'
+        reload_modules()
+        
+        from ldap_auth import _get_allowed_group_dn
+        from config import Config
+        
+        # Should construct a proper DN from the template, not use 'admin=users' as-is
+        result = _get_allowed_group_dn()
+        
+        # Expected: cn=admin=users,ou=groups,<base_dn>
+        # (The group name 'admin=users' is inserted into the template)
+        expected = f'cn=admin=users,ou=groups,{Config.LDAP_BASE_DN}'
+        assert result == expected
+    
     def test_group_check_empty_memberof(self, ldap_config):
         """Test authentication fails when user has no groups."""
         os.environ['LDAP_ALLOWED_GROUP'] = 'whitelist-users'
