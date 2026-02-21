@@ -448,13 +448,15 @@ class TestLdapGroupAccessControl:
         reload_modules()
         
         from ldap_auth import _get_allowed_group_dn
+        from config import Config
         
         # Should construct a proper DN from the template, not use 'admin=users' as-is
         result = _get_allowed_group_dn()
         
-        # Expected: cn=admin=users,ou=groups,dc=example,dc=com
+        # Expected: cn=admin=users,ou=groups,<base_dn>
         # (The group name 'admin=users' is inserted into the template)
-        assert result == 'cn=admin=users,ou=groups,dc=example,dc=com'
+        expected = f'cn=admin=users,ou=groups,{Config.LDAP_BASE_DN}'
+        assert result == expected
     
     def test_group_check_empty_memberof(self, ldap_config):
         """Test authentication fails when user has no groups."""
