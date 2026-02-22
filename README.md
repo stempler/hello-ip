@@ -7,9 +7,14 @@ A simple web application for authenticating users and maintaining an IP whitelis
 - Web-based authentication interface
 - Persistent IP whitelist storage with expiration
 - Internal endpoint for retrieving whitelist as text file
+- Integration with Bunkerweb API (intended to be used for updating greylist)
 - Docker containerization with environment variable configuration
 - Support for multiple credentials
 - LDAP authentication support (with defaults targeting LLDAP)
+
+## AI disclaimer
+
+Yes, this was vibe-coded. But it was also carefully reviewed and designed for minimum complexity.
 
 ## Quick Start
 
