@@ -1,19 +1,14 @@
 """Integration tests for LDAP authentication using LLDAP container."""
 import os
-import sys
 import time
 import pytest
 
 # Skip all tests in this module if Docker is not available
 pytestmark = pytest.mark.integration
 
-
-def reload_modules():
-    """Reload config and ldap_auth modules to pick up env var changes."""
-    modules_to_reload = ['config', 'ldap_auth', 'database']
-    for mod in modules_to_reload:
-        if mod in sys.modules:
-            del sys.modules[mod]
+# Import reload_modules from conftest
+import tests.conftest as conftest_module
+reload_modules = conftest_module.reload_modules
 
 
 def is_docker_available():
@@ -607,16 +602,30 @@ class TestLLDAPIntegration:
             pytest.skip("Could not add user to group in LLDAP")
         
         # Configure group-based access control
+        original_group = os.environ.get('LDAP_ALLOWED_GROUP')
+        original_template = os.environ.get('LDAP_GROUP_DN_TEMPLATE')
         os.environ['LDAP_ALLOWED_GROUP'] = group_name
         os.environ['LDAP_GROUP_DN_TEMPLATE'] = 'cn={},ou=groups,{}'
         reload_modules()
         
-        from ldap_auth import verify_ldap_credential
-        
-        # Should succeed - user is in allowed group
-        # LLDAP makes group membership changes immediately available via LDAP queries
-        result = verify_ldap_credential(test_username, test_password)
-        assert result is True
+        try:
+            from ldap_auth import verify_ldap_credential
+            
+            # Should succeed - user is in allowed group
+            # LLDAP makes group membership changes immediately available via LDAP queries
+            result = verify_ldap_credential(test_username, test_password)
+            assert result is True
+        finally:
+            # Cleanup
+            if original_group is not None:
+                os.environ['LDAP_ALLOWED_GROUP'] = original_group
+            elif 'LDAP_ALLOWED_GROUP' in os.environ:
+                del os.environ['LDAP_ALLOWED_GROUP']
+            if original_template is not None:
+                os.environ['LDAP_GROUP_DN_TEMPLATE'] = original_template
+            elif 'LDAP_GROUP_DN_TEMPLATE' in os.environ:
+                del os.environ['LDAP_GROUP_DN_TEMPLATE']
+            reload_modules()
     
     def test_group_access_control_user_not_in_group(self, lldap_container, ldap_env, temp_db):
         """Test authentication fails when user is not in allowed group."""
@@ -636,15 +645,29 @@ class TestLLDAPIntegration:
             pytest.skip("Could not create test user in LLDAP")
         
         # Configure group-based access control
+        original_group = os.environ.get('LDAP_ALLOWED_GROUP')
+        original_template = os.environ.get('LDAP_GROUP_DN_TEMPLATE')
         os.environ['LDAP_ALLOWED_GROUP'] = group_name
         os.environ['LDAP_GROUP_DN_TEMPLATE'] = 'cn={},ou=groups,{}'
         reload_modules()
         
-        from ldap_auth import verify_ldap_credential
-        
-        # Should fail - user is not in allowed group
-        result = verify_ldap_credential(test_username, test_password)
-        assert result is False
+        try:
+            from ldap_auth import verify_ldap_credential
+            
+            # Should fail - user is not in allowed group
+            result = verify_ldap_credential(test_username, test_password)
+            assert result is False
+        finally:
+            # Cleanup
+            if original_group is not None:
+                os.environ['LDAP_ALLOWED_GROUP'] = original_group
+            elif 'LDAP_ALLOWED_GROUP' in os.environ:
+                del os.environ['LDAP_ALLOWED_GROUP']
+            if original_template is not None:
+                os.environ['LDAP_GROUP_DN_TEMPLATE'] = original_template
+            elif 'LDAP_GROUP_DN_TEMPLATE' in os.environ:
+                del os.environ['LDAP_GROUP_DN_TEMPLATE']
+            reload_modules()
     
     def test_group_access_control_full_dn_format(self, lldap_container, ldap_env, temp_db):
         """Test group access control with full DN format."""
@@ -670,14 +693,23 @@ class TestLLDAPIntegration:
         
         # Configure group-based access control with full DN
         full_group_dn = f"cn={group_name},ou=groups,{lldap_container.base_dn}"
+        original_group = os.environ.get('LDAP_ALLOWED_GROUP')
         os.environ['LDAP_ALLOWED_GROUP'] = full_group_dn
         reload_modules()
         
-        from ldap_auth import verify_ldap_credential
-        
-        # Should succeed - user is in allowed group
-        result = verify_ldap_credential(test_username, test_password)
-        assert result is True
+        try:
+            from ldap_auth import verify_ldap_credential
+            
+            # Should succeed - user is in allowed group
+            result = verify_ldap_credential(test_username, test_password)
+            assert result is True
+        finally:
+            # Cleanup
+            if original_group is not None:
+                os.environ['LDAP_ALLOWED_GROUP'] = original_group
+            elif 'LDAP_ALLOWED_GROUP' in os.environ:
+                del os.environ['LDAP_ALLOWED_GROUP']
+            reload_modules()
     
     def test_group_access_control_missing_bind_dn(self, lldap_container, ldap_env, temp_db):
         """Test group access control fails when service account is missing."""
@@ -685,14 +717,33 @@ class TestLLDAPIntegration:
         
         # Configure group-based access control but no service account
         # Using a unique group name that doesn't need to exist for this test
+        original_group = os.environ.get('LDAP_ALLOWED_GROUP')
+        original_bind_dn = os.environ.get('LDAP_BIND_DN')
+        original_bind_password = os.environ.get('LDAP_BIND_PASSWORD')
         os.environ['LDAP_ALLOWED_GROUP'] = 'test-group-missing-bind-dn'
         os.environ['LDAP_BIND_DN'] = ''
         os.environ['LDAP_BIND_PASSWORD'] = ''
         reload_modules()
         
-        from ldap_auth import verify_ldap_credential
-        
-        # Should fail - service account required for group checking
-        result = verify_ldap_credential("admin", lldap_container.admin_password)
-        assert result is False
+        try:
+            from ldap_auth import verify_ldap_credential
+            
+            # Should fail - service account required for group checking
+            result = verify_ldap_credential("admin", lldap_container.admin_password)
+            assert result is False
+        finally:
+            # Cleanup
+            if original_group is not None:
+                os.environ['LDAP_ALLOWED_GROUP'] = original_group
+            elif 'LDAP_ALLOWED_GROUP' in os.environ:
+                del os.environ['LDAP_ALLOWED_GROUP']
+            if original_bind_dn is not None:
+                os.environ['LDAP_BIND_DN'] = original_bind_dn
+            elif 'LDAP_BIND_DN' in os.environ:
+                del os.environ['LDAP_BIND_DN']
+            if original_bind_password is not None:
+                os.environ['LDAP_BIND_PASSWORD'] = original_bind_password
+            elif 'LDAP_BIND_PASSWORD' in os.environ:
+                del os.environ['LDAP_BIND_PASSWORD']
+            reload_modules()
 
