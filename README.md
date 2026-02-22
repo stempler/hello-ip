@@ -72,6 +72,7 @@ docker run -d \
 | `BUNKERWEB_PASSWORD` | BunkerWeb API password for basic auth | `` |
 | `BUNKERWEB_JOB_PLUGIN` | Job plugin name to trigger | `greylist` |
 | `BUNKERWEB_JOB_NAME` | Job name to trigger | `greylist-download` |
+| `BUNKERWEB_UNBAN_ENABLED` | Automatically unban whitelisted IPs in BunkerWeb | `false` |
 | `LDAP_ENABLED` | Enable LDAP authentication | `false` |
 | `LDAP_SERVER` | LDAP server URL | `ldap://localhost:3890` |
 | `LDAP_BASE_DN` | Base DN for user searches | `dc=example,dc=com` |
@@ -81,6 +82,10 @@ docker run -d \
 | `LDAP_USER_FILTER` | Filter to find users | `(&(objectClass=person)(uid={}))` |
 | `LDAP_USE_TLS` | Use STARTTLS for connection | `false` |
 | `LDAP_FALLBACK_LOCAL` | Fall back to local credentials if LDAP fails | `true` |
+| `LDAP_ALLOWED_GROUP` | Optional group name or DN. If set, only users in this group can authenticate | (empty) |
+| `LDAP_GROUP_DN_TEMPLATE` | Template for constructing group DN from group name | `cn={},ou=groups,{}` |
+| `LDAP_GROUP_OBJECT_CLASS` | LDAP objectClass for groups (e.g., `groupOfNames`, `group`, `posixGroup`) | `groupOfNames` |
+| `LOG_LEVEL` | Python logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL) | `INFO` |
 
 ### Credentials Format
 
